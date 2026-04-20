@@ -1,27 +1,42 @@
 <script setup>
-import { ref, onMounted } from 'vue'
-import HelloWorld from './components/HelloWorld.vue'
+import { examStore } from './store/exam.js'
+import { onMounted } from 'vue'
 
-const message = ref('Welcome to Ayumu!')
-const apiResponse = ref('')
-
-onMounted(async () => {
-  try {
-    const response = await fetch('/api/health')
-    const data = await response.json()
-    apiResponse.value = data.message
-  } catch (error) {
-    apiResponse.value = 'Failed to connect to server'
-  }
+onMounted(() => {
+  // Initialize the theme on application load
+  examStore.setTheme(examStore.activeTheme)
 })
 </script>
 
 <template>
-  <div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-    <div class="bg-white p-8 rounded-lg shadow-lg max-w-md w-full">
-      <h1 class="text-3xl font-bold text-gray-800 mb-4">{{ message }}</h1>
-      <HelloWorld msg="Vue 3 + Vite + Tailwind CSS" />
-      <p class="mt-4 text-gray-600">Server Status: {{ apiResponse }}</p>
-    </div>
-  </div>
+  <router-view></router-view>
 </template>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap');
+
+:root {
+  font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+[lang="ja"], .text-2xl, .text-3xl, .text-4xl, .text-5xl {
+  font-family: "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Helvetica Neue", Arial, Meiryo, sans-serif;
+  font-weight: 700;
+}
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+span.underline {
+  background: linear-gradient(120deg, rgba(var(--color-primary-500), 0.1) 0%, rgba(var(--color-primary-500), 0.1) 100%);
+  background-repeat: no-repeat;
+  background-size: 100% 0.4em;
+  background-position: 0 88%;
+}
+
+::selection {
+  background: var(--color-primary-300);
+  color: inherit;
+}
+</style>
