@@ -2,7 +2,7 @@
 
 const express = require('express');
 const crypto = require('crypto');
-const { generateSessionCode } = require('../middleware/auth');
+const { generateSessionCode, ANON_COOKIE } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -200,14 +200,17 @@ router.get('/:code', async (req, res, next) => {
     const { loadQuizByQuestionIds } = req.app.locals;
     const quiz = await loadQuizByQuestionIds(session.question_ids);
 
-    // Apply option orders to questions
+    // Apply option orders to questions and map sections
     const questionsWithShuffledOptions = quiz.questions.map((q, idx) => {
       const order = session.option_orders[idx] || [1, 2, 3, 4];
       const shuffledOptions = order.map((optIdx) => q.options[optIdx - 1]).filter(Boolean);
+      const exercise = quiz.exerciseMap.get(q.exerciseId);
       return {
         ...q,
         options: shuffledOptions,
         originalOptionOrder: order,
+        section: exercise?.section || 'unknown',
+        exerciseTitle: exercise?.title || '',
       };
     });
 
@@ -385,68 +388,99 @@ router.post('/:code/submit', async (req, res, next) => {
 
 /**
  * POST /api/sessions/claim
- * Transfer anonymous sessions/results to Discord user
+ * Transfer anonymous sessions/results to authenticated user (Discord or JWT)
+ * Reads anonymous user ID from ayumu_tanin_id cookie — no body required
  */
 router.post('/claim', async (req, res, next) => {
   try {
     const { supabaseRequest } = req.app.locals;
-    const { anonymous_user_id } = req.body;
-    const discordUserId = req.userId;
+    const targetUserId = req.userId;
 
-    if (!discordUserId || !anonymous_user_id) {
-      return res.status(400).json({ message: 'anonymous_user_id and authenticated user required' });
+    if (!targetUserId) {
+      return res.status(400).json({ message: 'Authentication required' });
+    }
+
+    // Verify target is not anonymous itself
+    const [targetUser] = await supabaseRequest(
+      'users',
+      `select=is_anonymous&id=eq.${enc(targetUserId)}&limit=1`
+    );
+    if (!targetUser || targetUser.is_anonymous) {
+      return res.status(400).json({ message: 'Must be signed in to claim progress' });
+    }
+
+    // Get anonymous user UUID from cookie
+    const anonymousUserId = req.cookies[ANON_COOKIE];
+    if (!anonymousUserId) {
+      return res.status(400).json({ message: 'No anonymous progress found to claim' });
+    }
+
+    // Verify anonymous user exists
+    const [anonUser] = await supabaseRequest(
+      'users',
+      `select=id,is_anonymous&id=eq.${enc(anonymousUserId)}&limit=1`
+    );
+    if (!anonUser || !anonUser.is_anonymous) {
+      return res.status(400).json({ message: 'No anonymous progress found' });
     }
 
     // Transfer sessions
     await supabaseRequest(
       'user_sessions',
-      `user_id=eq.${enc(anonymous_user_id)}`,
+      `user_id=eq.${enc(anonymousUserId)}`,
       {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: discordUserId }),
+        body: JSON.stringify({ user_id: targetUserId }),
       }
     );
 
     // Transfer results
     await supabaseRequest(
       'user_results',
-      `user_id=eq.${enc(anonymous_user_id)}`,
+      `user_id=eq.${enc(anonymousUserId)}`,
       {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: discordUserId }),
+        body: JSON.stringify({ user_id: targetUserId }),
       }
     );
 
     // Transfer achievements
     await supabaseRequest(
       'user_achievements',
-      `user_id=eq.${enc(anonymous_user_id)}`,
+      `user_id=eq.${enc(anonymousUserId)}`,
       {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: discordUserId }),
+        body: JSON.stringify({ user_id: targetUserId }),
       }
     );
 
     // Transfer stats
     await supabaseRequest(
       'user_stats',
-      `user_id=eq.${enc(anonymous_user_id)}`,
+      `user_id=eq.${enc(anonymousUserId)}`,
       {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: discordUserId }),
+        body: JSON.stringify({ user_id: targetUserId }),
       }
     );
 
     // Delete anonymous user
     await supabaseRequest(
       'users',
-      `id=eq.${enc(anonymous_user_id)}`,
+      `id=eq.${enc(anonymousUserId)}`,
       { method: 'DELETE' }
     );
+
+    // Clear the anonymous cookie
+    res.clearCookie(ANON_COOKIE, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+    });
 
     res.json({ success: true, message: 'Progress claimed successfully' });
   } catch (error) {
@@ -465,7 +499,7 @@ async function updateStreak(supabaseRequest, userId, score, total) {
   // Check if streak entry exists for today
   const [existing] = await supabaseRequest(
     'user_streaks',
-    `select=id,exam_count,total_score,user_id=${enc(userId)}&date=eq.${today}&limit=1`
+    `select=id,exam_count,total_score&user_id=eq.${enc(userId)}&date=eq.${today}&limit=1`
   );
 
   if (existing) {
@@ -513,7 +547,7 @@ async function checkAchievements(supabaseRequest, userId, score, total, percenta
   // Get user's total exams
   const [stats] = await supabaseRequest(
     'user_results',
-    `select=count&user_id=eq.${enc(userId)}&select=count`
+    `select=count&user_id=eq.${enc(userId)}`
   );
   const totalExams = parseInt(stats?.count || 0) + 1;
 

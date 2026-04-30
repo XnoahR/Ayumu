@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useSessionStore } from '../store/session.js'
 
 const props = defineProps({
@@ -8,118 +8,155 @@ const props = defineProps({
 })
 
 const sessionStore = useSessionStore()
+const audioRef = ref(null)
 
-// N5 Dokkai Kanji Map for Hover Tooltip
-const furiganaMap = {
-  "山口先生": "やまぐちせんせい", "中川先生": "なかがわせんせい", "北山花子": "きたやまはなこ",
-  "日本語": "にほんご", "来週": "らいしゅう", "今月": "こんげつ", "東京": "とうきょう",
-  "中川": "なかがわ", "電話": "でんわ", "本田": "ほんだ", "北山": "きたやま",
-  "会社": "かいしゃ", "本屋": "ほんや", "学生": "がくせい", "学校": "がっこう",
-  "外国": "がいこく", "月前": "げつまえ", "山口": "やまぐち", "電車": "でんしゃ",
-  "質問": "しつもん", "時間": "じかん", "日本": "にほん", "二人": "ふたり",
-  "山下": "やました", "田中": "たなか", "今日": "きょう", "山田": "やまだ",
-  "先生": "せんせい",
-  "弟": "おとうと", "妹": "いもうと", "出": "で", "右": "みぎ", 
-  "見": "み", "行": "い", "来": "き", "駅": "えき", "円": "えん", 
-  "母": "はは", "父": "ちち", "子": "こ", "食": "た", "手": "て", 
-  "雪": "ゆき", "川": "かわ", "小": "ちい", "魚": "さかな", "兄": "あに", 
-  "作": "つく", "読": "よ", "何": "なに", "話": "はな", "店": "みせ", 
-  "人": "ひと", "本": "ほん", "買": "か", "少": "すこ", "書": "か", 
-  "前": "まえ", "屋": "や", "国": "くに", "今": "いま", "安": "やす", 
-  "大": "おお", "売": "う", "多": "おお", "友": "とも", "物": "もの", 
-  "姉": "あね", "一": "ひと", "二": "ふた", "森": "もり", "机": "つくえ", 
-  "上": "うえ", "使": "つか", "枚": "まい", "南": "みなみ", "夜": "よる", 
-  "帰": "かえ", "家": "いえ", "近": "ちか", "外": "そと", "雨": "あめ", 
-  "中": "なか", "言": "い", "聞": "き", "金": "かね", "着": "つ", 
-  "入": "い", "月": "げつ", "火": "か", "水": "すい", "木": "もく", 
-  "土": "ど", "同": "おな", "日": "ひ"
+const sectionDisplayMap = {
+  grammar: 'GRAMMAR / 文字・語彙',
+  reading: 'READING / 読解',
+  listening: 'LISTENING / 聴解',
 }
 
-const kanjiRegex = new RegExp(`(${Object.keys(furiganaMap).join('|')})`, 'g')
+const sectionLabel = computed(() => {
+  const section = props.question?.section || ''
+  return sectionDisplayMap[section] || section.toUpperCase()
+})
 
-const renderText = (text) => {
-  if (!text) return ''
-  return text.replace(kanjiRegex, (match) => {
-    if (match.includes('span')) return match
-    const reading = furiganaMap[match]
-    return `<span class="relative group inline-block cursor-help text-primary-700 bg-primary-100/50 dark:bg-primary-900/30 px-1 rounded-md dark:text-primary-300 font-bold border-b-2 border-dashed border-primary-400 dark:border-primary-500">
-              ${match}
-              <span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-primary-900 text-white text-[10px] font-bold rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap shadow-lg z-10">
-                ${reading}
-                <svg class="absolute text-primary-900 h-2 w-full left-0 top-full" x="0px" y="0px" viewBox="0 0 255 255"><polygon class="fill-current" points="0,0 127.5,127.5 255,0"/></svg>
-              </span>
-            </span>`
-  })
-}
+const isListening = computed(() => {
+  return props.question?.section === 'listening'
+})
 
-const questionText = computed(() => {
-  if (!props.question) return ''
-  return renderText(props.question.prompt || props.question.context || '')
+const audioAsset = computed(() => {
+  if (!props.question?.assets) return null
+  return props.question.assets.find(a => a.type === 'audio')
+})
+
+const imageAssets = computed(() => {
+  if (!props.question?.assets) return []
+  return props.question.assets.filter(a => a.type === 'image')
 })
 
 const options = computed(() => {
   if (!props.question?.options) return []
   return props.question.options.map((opt, idx) => ({
     id: idx + 1,
-    label: renderText(opt.label || opt.option_label || ''),
+    label: opt.label || opt.option_label || '',
     value: opt.value || opt.option_value || String(idx + 1),
   }))
 })
 
-const isSelected = (optionId) => sessionStore.userAnswers[props.index] === optionId
+const selectedOptionId = computed(() => sessionStore.userAnswers[props.index])
 
-const selectOption = (optionId) => {
-  sessionStore.saveAnswer(props.index, optionId)
+const selectOption = (optionValue) => {
+  sessionStore.saveAnswer(props.index, optionValue)
+}
+
+const toggleFlag = () => {
+  sessionStore.toggleFlag(props.index)
 }
 </script>
 
 <template>
-  <div class="bg-white dark:bg-[#16161c] rounded-md border-2 border-primary-100 dark:border-primary-900/30 shadow-xl shadow-primary-200/20 dark:shadow-none w-full transition-all duration-300 p-8 md:p-12">
-    
-    <div class="flex items-center gap-3 mb-4">
-      <span class="bg-primary-600 text-white text-[10px] font-black px-3 py-1.5 rounded-lg uppercase tracking-widest transition-colors duration-300">Question {{ index + 1 }}</span>
-      <div class="flex-1 h-px bg-primary-100 dark:bg-primary-900/30 transition-colors duration-300"></div>
-    </div>
-
-    <p v-if="question?.context" class="text-primary-500 dark:text-primary-400/50 font-bold mb-4 uppercase tracking-wider transition-colors duration-300 text-xs">
-      {{ question.context }}
-    </p>
-
-    <div class="font-bold leading-[1.8] mb-8 text-primary-950 dark:text-white transition-all duration-300 text-xl md:text-2xl"
-         v-html="questionText">
-    </div>
-
-    <div v-if="question?.passage" class="mb-8 p-6 bg-primary-50 dark:bg-primary-950/20 border-2 border-primary-100 dark:border-primary-900/20 rounded-xl">
-      <h4 class="text-sm font-black text-primary-600 mb-2">Passage</h4>
-      <div class="text-base leading-[1.8] text-primary-900 dark:text-white" v-html="renderText(question.passage.content)"></div>
-    </div>
-
-    <div v-if="question?.assets?.length" class="mb-8 rounded-xl overflow-hidden bg-primary-50 dark:bg-primary-950/20 border-2 border-primary-100 dark:border-primary-900/20 flex justify-center">
-      <img v-for="asset in question.assets.filter(a => a.type === 'image')" :key="asset.id" :src="asset.url" class="max-w-full h-auto max-h-64 object-contain p-4" />
-    </div>
-
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-      <button v-for="opt in options" :key="opt.id"
-        @click="selectOption(opt.id)"
-        class="group flex items-center gap-3 rounded-xl border-2 transition-all text-left p-4"
-        :class="[
-          isSelected(opt.id) 
-            ? 'border-primary-600 bg-primary-50 dark:bg-primary-600/20' 
-            : 'border-primary-100 dark:border-primary-900/30 hover:border-primary-300 dark:hover:border-primary-700 bg-transparent'
-        ]"
-      >
-        <span class="flex items-center justify-center rounded-lg border-2 shrink-0 font-black transition-all w-7 h-7 text-sm"
-          :class="[
-            isSelected(opt.id) ? 'bg-primary-600 border-primary-600 text-white' : 'border-primary-200 dark:border-primary-800 text-primary-400 dark:text-primary-600'
-          ]"
-        >{{ opt.id }}</span>
-        <span class="font-bold text-base md:text-lg" 
-              :class="[
-                isSelected(opt.id) ? 'text-primary-900 dark:text-white' : 'text-primary-800 dark:text-primary-200'
-              ]" 
-              v-html="opt.label">
+  <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-600 shadow-sm w-full">
+    <!-- Section + Question Header -->
+    <div class="flex items-center justify-between px-6 py-3 border-b border-gray-200 dark:border-gray-700">
+      <div class="flex items-center gap-4">
+        <span class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+          Question {{ index + 1 }} of {{ sessionStore.totalQuestions }}
         </span>
-      </button>
+        <span class="text-xs font-medium text-gray-400 dark:text-gray-500">
+          {{ sectionLabel }}
+        </span>
+      </div>
+      <div class="flex items-center gap-3">
+        <button @click="toggleFlag"
+          class="flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded border transition-colors"
+          :class="sessionStore.isFlagged(index)
+            ? 'border-amber-400 bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-600'
+            : 'border-gray-300 text-gray-500 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-700'"
+        >
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9" />
+          </svg>
+          {{ sessionStore.isFlagged(index) ? 'Flagged' : 'Flag for review' }}
+        </button>
+        <span class="text-xs font-medium px-2 py-1 rounded"
+          :class="selectedOptionId
+            ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400'
+            : 'bg-gray-100 text-gray-400 dark:bg-gray-700 dark:text-gray-500'"
+        >
+          {{ selectedOptionId ? 'Answered' : 'No response' }}
+        </span>
+      </div>
+    </div>
+
+    <!-- Audio Player (listening only) -->
+    <div v-if="isListening && audioAsset" class="px-6 pt-4">
+      <div class="bg-gray-800 dark:bg-gray-900 rounded-lg p-3 flex items-center gap-3">
+        <audio ref="audioRef" :src="audioAsset.url" class="hidden" controls></audio>
+        <div class="flex items-center gap-2 w-full">
+          <button @click="$refs.audioRef?.play()" class="text-white hover:text-gray-300 transition-colors">
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M8 5v14l11-7z"/>
+            </svg>
+          </button>
+          <div class="flex-1 h-1 bg-gray-600 rounded-full overflow-hidden">
+            <div class="h-full bg-white rounded-full" style="width: 0%"></div>
+          </div>
+          <span class="text-xs text-gray-400 font-mono">0:00 / 0:25</span>
+          <svg class="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+          </svg>
+          <input type="range" min="0" max="1" step="0.1" class="w-16 accent-white" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Image Assets -->
+    <div v-if="imageAssets.length" class="px-6 pt-4">
+      <div class="border-2 border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden bg-gray-50 dark:bg-gray-900 p-4 flex justify-center">
+        <img v-for="asset in imageAssets" :key="asset.id" :src="asset.url" class="max-w-full h-auto max-h-80 object-contain" />
+      </div>
+    </div>
+
+    <!-- Passage -->
+    <div v-if="question?.passage" class="px-6 pt-4">
+      <div class="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+        <h4 class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Passage</h4>
+        <div class="text-sm leading-relaxed text-gray-800 dark:text-gray-200 whitespace-pre-line">{{ question.passage.content }}</div>
+      </div>
+    </div>
+
+    <!-- Prompt / Context -->
+    <div class="px-6 pt-4 pb-2">
+      <p v-if="question?.context" class="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">
+        {{ question.context }}
+      </p>
+      <p v-if="question?.prompt" class="text-base md:text-lg font-medium text-gray-900 dark:text-white leading-relaxed">
+        {{ question.prompt }}
+      </p>
+    </div>
+
+    <!-- Options -->
+    <div class="px-6 pb-6 pt-2">
+      <div class="space-y-2">
+        <button v-for="opt in options" :key="opt.id"
+          @click="selectOption(opt.value)"
+          class="w-full flex items-center gap-3 rounded-lg border px-4 py-3 text-left transition-colors"
+          :class="selectedOptionId === opt.value
+            ? 'border-gray-400 bg-gray-50 dark:border-gray-500 dark:bg-gray-700'
+            : 'border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-600'"
+        >
+          <span class="w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0"
+            :class="selectedOptionId === opt.value
+              ? 'border-gray-600 dark:border-gray-400'
+              : 'border-gray-300 dark:border-gray-600'"
+          >
+            <span v-if="selectedOptionId === opt.value" class="w-2 h-2 rounded-full bg-gray-600 dark:bg-gray-400"></span>
+          </span>
+          <span class="text-sm font-medium text-gray-500 dark:text-gray-400 mr-1">{{ opt.id }}.</span>
+          <span class="text-sm text-gray-800 dark:text-gray-200">{{ opt.label }}</span>
+        </button>
+      </div>
     </div>
   </div>
 </template>

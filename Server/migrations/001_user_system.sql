@@ -291,10 +291,11 @@ CREATE TRIGGER on_result_inserted
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO public.users (id, auth_id, username, display_name, avatar_url, is_anonymous)
+  INSERT INTO public.users (id, auth_id, discord_id, username, display_name, avatar_url, is_anonymous)
   VALUES (
     NEW.id,
     NEW.id,
+    NEW.raw_user_meta_data->>'provider_id',
     NEW.raw_user_meta_data->>'name',
     NEW.raw_user_meta_data->>'full_name',
     NEW.raw_user_meta_data->>'avatar_url',
@@ -302,6 +303,7 @@ BEGIN
   )
   ON CONFLICT (id) DO UPDATE SET
     auth_id = EXCLUDED.auth_id,
+    discord_id = COALESCE(EXCLUDED.discord_id, public.users.discord_id),
     username = COALESCE(EXCLUDED.username, public.users.username),
     display_name = COALESCE(EXCLUDED.display_name, public.users.display_name),
     avatar_url = COALESCE(EXCLUDED.avatar_url, public.users.avatar_url),

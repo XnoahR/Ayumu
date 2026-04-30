@@ -2,6 +2,12 @@
 // Handles Discord bot users and anonymous web users
 
 const { nanoid } = require('nanoid');
+const { jwtVerify, createRemoteJWKSet } = require('jose');
+
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const JWKS = SUPABASE_URL
+  ? createRemoteJWKSet(new URL(`${SUPABASE_URL}/auth/v1/.well-known/jwks.json`))
+  : null;
 
 // Generate a short session code: aym_xxxxxx
 function generateSessionCode() {
@@ -11,11 +17,15 @@ function generateSessionCode() {
 // Generate anonymous user ID cookie name
 const ANON_COOKIE = 'ayumu_tanin_id';
 
+function enc(value) {
+  return encodeURIComponent(String(value));
+}
+
 /**
  * Resolve user from request
  * Priority:
  * 1. X-Discord-User-Id header (from bot)
- * 2. Supabase Auth JWT (from web OAuth)
+ * 2. Authorization: Bearer <jwt> (Supabase Auth, web OAuth)
  * 3. Anonymous cookie (from web without login)
  * 
  * Attaches req.userId (UUID from our users table)
@@ -30,7 +40,7 @@ async function resolveUser(req, res, next) {
     if (discordId) {
       const [user] = await supabaseRequest(
         'users',
-        `select=id&discord_id=eq.${encodeURIComponent(discordId)}&limit=1`
+        `select=id&discord_id=eq.${enc(discordId)}&limit=1`
       );
 
       if (user) {
@@ -52,8 +62,26 @@ async function resolveUser(req, res, next) {
     }
 
     // 2. Check Supabase Auth JWT (web OAuth)
-    // TODO: Implement JWT verification if needed
-    // For now, we trust the anon cookie or Discord header
+    const authHeader = req.headers['authorization'];
+    if (!userId && JWKS && authHeader?.startsWith('Bearer ')) {
+      try {
+        const token = authHeader.slice(7);
+        const { payload } = await jwtVerify(token, JWKS);
+
+        if (payload.sub) {
+          const [user] = await supabaseRequest(
+            'users',
+            `select=id&auth_id=eq.${enc(payload.sub)}&limit=1`
+          );
+          if (user) {
+            userId = user.id;
+          }
+        }
+      } catch (err) {
+        console.warn('JWT verification failed:', err.message);
+        // Fall through to anonymous cookie
+      }
+    }
 
     // 3. Check anonymous cookie
     if (!userId) {

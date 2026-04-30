@@ -1,87 +1,40 @@
 @import "tailwindcss";
 
-/* Enable class-based dark mode in Tailwind v4 */
 @custom-variant dark (&:is(.dark *));
 
 @theme {
-  --color-primary-50: var(--primary-50);
-  --color-primary-100: var(--primary-100);
-  --color-primary-200: var(--primary-200);
-  --color-primary-300: var(--primary-300);
-  --color-primary-400: var(--primary-400);
-  --color-primary-500: var(--primary-500);
-  --color-primary-600: var(--primary-600);
-  --color-primary-700: var(--primary-700);
-  --color-primary-800: var(--primary-800);
-  --color-primary-900: var(--primary-900);
-  --color-primary-950: var(--primary-950);
+  --color-gray-50: #f9fafb;
+  --color-gray-100: #f3f4f6;
+  --color-gray-200: #e5e7eb;
+  --color-gray-300: #d1d5db;
+  --color-gray-400: #9ca3af;
+  --color-gray-500: #6b7280;
+  --color-gray-600: #4b5563;
+  --color-gray-700: #374151;
+  --color-gray-800: #1f2937;
+  --color-gray-900: #111827;
+  --color-gray-950: #030712;
 }
 
-/* Base Theme: Lavender */
 :root {
-  --primary-50: #f5f3ff;
-  --primary-100: #ede9fe;
-  --primary-200: #ddd6fe;
-  --primary-300: #c4b5fd;
-  --primary-400: #a78bfa;
-  --primary-500: #8b5cf6;
-  --primary-600: #7c3aed;
-  --primary-700: #6d28d9;
-  --primary-800: #5b21b6;
-  --primary-900: #4c1d95;
-  --primary-950: #2e1065;
-
-  background-color: var(--primary-50);
-  color: var(--primary-950);
+  background-color: #f0f2f5;
+  color: #1f2937;
 }
 
-/* Theme: Philia (#4051b5) */
-:root.theme-philia {
-  --primary-50: #eef2ff;
-  --primary-100: #e0e7ff;
-  --primary-200: #c7d2fe;
-  --primary-300: #a5b4fc;
-  --primary-400: #818cf8;
-  --primary-500: #6366f1;
-  --primary-600: #4051b5; /* Core Philia Color */
-  --primary-700: #3949ab;
-  --primary-800: #303f9f;
-  --primary-900: #283593;
-  --primary-950: #1a237e;
-}
-
-/* Theme: Wisteria (Soft, low-contrast purple) */
-:root.theme-wisteria {
-  --primary-50: #fcfaff;
-  --primary-100: #f4ebfb;
-  --primary-200: #e7d6f5;
-  --primary-300: #d6bdf0;
-  --primary-400: #c1a1e8;
-  --primary-500: #a983db;
-  --primary-600: #8f62c8;
-  --primary-700: #7649ac;
-  --primary-800: #613e8e;
-  --primary-900: #513674;
-  --primary-950: #311c4d;
-}
-
-/* Theme: Mauve (Muted, low-contrast gray-purple) */
-:root.theme-mauve {
-  --primary-50: #f8f7fa;
-  --primary-100: #f1eff5;
-  --primary-200: #e2dfe9;
-  --primary-300: #cecad8;
-  --primary-400: #b5afc4;
-  --primary-500: #9c94ad;
-  --primary-600: #827993;
-  --primary-700: #6b627a;
-  --primary-800: #585165;
-  --primary-900: #494452;
-  --primary-950: #2d2934;
-}
-
-/* Dark Mode Overrides */
 :root.dark {
-  background-color: #0a0a0c;
-  color: var(--primary-50);
+  background-color: #111827;
+  color: #f3f4f6;
+}
+
+[lang="ja"], .text-2xl, .text-3xl, .text-4xl, .text-5xl {
+  font-family: "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Helvetica Neue", Arial, Meiryo, sans-serif;
+  font-weight: 700;
+}
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+::selection {
+  background: #d1d5db;
+  color: inherit;
 }
