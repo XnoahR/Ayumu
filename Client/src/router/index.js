@@ -3,6 +3,7 @@ import LandingPage from '../views/LandingPage.vue'
 import ExamPage from '../views/ExamPage.vue'
 import ResultsPage from '../views/ResultsPage.vue'
 import ProfilePage from '../views/ProfilePage.vue'
+import LeaderboardPage from '../views/LeaderboardPage.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -28,6 +29,11 @@ const router = createRouter({
       path: '/profile',
       name: 'profile',
       component: ProfilePage
+    },
+    {
+      path: '/leaderboard',
+      name: 'leaderboard',
+      component: LeaderboardPage
     }
   ]
 })

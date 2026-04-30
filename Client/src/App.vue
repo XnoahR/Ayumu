@@ -1,8 +1,9 @@
 <script setup>
 import { onMounted } from 'vue'
+import { loadTheme } from './composables/useTheme.js'
 
 onMounted(() => {
-  document.documentElement.className = ''
+  loadTheme()
 })
 </script>
 

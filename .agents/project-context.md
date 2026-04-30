@@ -1,6 +1,6 @@
 # Ayumu — Project Context
 
-> **Last Updated:** 2026-04-30  
+> **Last Updated:** 2026-05-01  
 > **Purpose:** Save the complete Ayumu project analysis for future session continuity.
 
 ---
@@ -12,7 +12,8 @@
 **Stack:**
 - **Frontend:** Vue 3 + Vite + Tailwind CSS v4 + Pinia + Vue Router
 - **Backend:** Node.js + Express + CORS + Cookie Parser
-- **Database:** Supabase (Postgres)
+- **Database:** Supabase (Postgres) + Supabase Auth (Discord OAuth)
+- **Bot:** Rust (serenity + poise) — separate repo: `Rust-Yuyuko`
 - **Package Manager:** npm
 
 **Ports:**
@@ -28,50 +29,48 @@
 Ayumu/
 ├── Client/                    # Vue 3 Frontend
 │   ├── src/
-│   │   ├── main.js            # Entry: createApp, Pinia, Router
-│   │   ├── App.vue            # Root layout, fonts, global styles
-│   │   ├── style.css          # Tailwind import only
+│   │   ├── main.js            # Entry: createApp, Pinia, Router, auth init
+│   │   ├── App.vue            # Root layout, theme init, <router-view>
+│   │   ├── style.css          # Tailwind v4 + custom theme (gray palette) + dark variant
 │   │   ├── router/
-│   │   │   └── index.js       # 4 routes: /, /exam/:code, /results/:code, /profile
+│   │   │   └── index.js       # 5 routes: /, /exam/:code, /results/:code, /profile, /leaderboard
 │   │   ├── store/
-│   │   │   ├── exam.js        # LEGACY reactive store (imports local N5 JSON)
-│   │   │   └── session.js     # ACTIVE Pinia store for API sessions
+│   │   │   ├── session.js     # Pinia store for API sessions (+ JWT headers)
+│   │   │   └── auth.js        # Pinia store for Supabase Auth (Discord OAuth)
+│   │   ├── composables/
+│   │   │   └── useTheme.js    # Dark/light theme toggle (localStorage + system pref)
+│   │   ├── lib/
+│   │   │   └── supabase.js    # Supabase client singleton
 │   │   ├── views/
-│   │   │   ├── LandingPage.vue    # Start N5 exam, link to profile
-│   │   │   ├── ExamPage.vue       # Split: QuestionArea + QuestionMap sidebar
-│   │   │   ├── ResultsPage.vue    # Scorecard, accuracy, time, achievements
-│   │   │   └── ProfilePage.vue    # Stats grid, rank, achievements, recent results
+│   │   │   ├── LandingPage.vue     # Dashboard: exam start, stats card, leaderboard card
+│   │   │   ├── ExamPage.vue        # Responsive: QuestionArea + mobile overlay QuestionMap
+│   │   │   ├── ResultsPage.vue     # Scorecard, accuracy, time, achievements
+│   │   │   ├── ProfilePage.vue     # Auth-aware: Discord avatar, stats, claim flow, achievements
+│   │   │   └── LeaderboardPage.vue # Full leaderboard with period/level filters
 │   │   └── components/
-│   │       ├── QuestionArea.vue   # Prompt, passage, images, 4-option grid, furigana tooltips
-│   │       └── QuestionMap.vue    # 5-col grid of question numbers, answered status, finish btn
-│   ├── local_data/
-│   │   └── N5 - 2010-2011.json    # Legacy static data used by exam.js
+│   │       ├── QuestionArea.vue    # Prompt, passage, images, audio player, 4-option grid
+│   │       ├── QuestionMap.vue     # Collapsible sections, question grid, flagged/answered status
+│   │       └── Toast.vue           # Fixed-position notification toast
 │   ├── index.html
 │   ├── vite.config.js         # Port 3000, proxy /api -> localhost:5000
-│   ├── tailwind.config.js
 │   ├── postcss.config.js
-│   └── package.json           # Vue 3.5, Tailwind 4, Pinia 3, Vue Router 4
+│   └── package.json           # Vue 3.5, Tailwind 4, Pinia 3, Vue Router 4, @supabase/supabase-js
 │
 ├── Server/                    # Express Backend
-│   ├── index.js               # Main server (672 lines). Core quiz logic + package generation
+│   ├── index.js               # Main server. Core quiz logic + package generation
 │   ├── routes/
-│   │   ├── sessions.js        # Exam session CRUD, scoring, streaks, achievements
+│   │   ├── sessions.js        # Exam session CRUD, scoring, streaks, achievements, claim
 │   │   └── profile.js         # User profile, leaderboard, ranks
 │   ├── middleware/
-│   │   └── auth.js            # User resolution: Discord bot / Anonymous / JWT placeholder
-│   ├── migrations/            # DB migrations
-│   ├── .env                   # SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, CLIENT_URL, PORT
-│   ├── .env.example
-│   └── package.json           # express 5.2, cors 2.8, pg 8.20
+│   │   └── auth.js            # User resolution: Discord bot / Supabase Auth JWT / Anonymous cookie
+│   ├── migrations/
+│   │   └── 001_user_system.sql # Users, sessions, results, stats, streaks, achievements, triggers
+│   ├── .env / .env.example
+│   └── package.json           # express, cors, jose (JWT verification), pg
 │
-├── docs/
-│   ├── PROJECT_ANALYSIS.md    # Runtime flow, frontend/backend analysis, recommendations
-│   └── DATABASE_ANALYSIS.md   # Table structures, data counts, API recommendations
-│
-├── .agents/                   # Agent configuration / skills
-├── skills/                    # (skill definitions)
+├── .agents/                   # Agent configuration / project context / skills
+├── docs/                      # Project analysis docs
 ├── package.json               # Root deps: cookie-parser, nanoid
-├── README.md                  # Setup instructions (Indonesian)
 └── .gitignore
 ```
 
@@ -79,262 +78,166 @@ Ayumu/
 
 ## 3. Frontend Summary
 
-### Entry Point (`Client/src/main.js`)
-- Creates Vue app
-- Uses `createPinia()`
-- Uses `router`
-- Mounts to `#app`
-
 ### Router (`Client/src/router/index.js`)
 | Path | Name | Component |
 |------|------|-----------|
-| `/` | home | LandingPage |
-| `/exam/:sessionCode` | exam | ExamPage |
+| `/` | home | LandingPage (dashboard) |
+| `/exam/:sessionCode` | exam | ExamPage (responsive, mobile overlay) |
 | `/results/:sessionCode` | results | ResultsPage |
-| `/profile` | profile | ProfilePage |
+| `/profile` | profile | ProfilePage (auth-aware) |
+| `/leaderboard` | leaderboard | LeaderboardPage (period/level filters) |
 
 ### Stores
 
-#### `session.js` (ACTIVE — Pinia)
-- State: `sessionCode`, `session`, `questions`, `currentIndex`, `userAnswers`, `isLoading`, `isSubmitting`, `submitResult`
-- Computed: `currentQuestion`, `totalQuestions`, `answeredCount`, `progress`
-- Actions:
-  - `createSession(level, templateId)` → POST `/api/sessions`
-  - `loadSession(code)` → GET `/api/sessions/:code`
-  - `saveAnswer(index, option)` → POST `/api/sessions/:code/answer`
-  - `submitSession()` → POST `/api/sessions/:code/submit`
-  - `nextQuestion()`, `prevQuestion()`, `goToQuestion(index)`, `reset()`
+#### `session.js` (Pinia)
+- State: `sessionCode`, `session`, `questions`, `currentIndex`, `userAnswers`, `flaggedQuestions`, `isLoading`, `isSubmitting`, `submitResult`, `error`
+- Computed: `currentQuestion`, `totalQuestions`, `answeredCount`, `progress`, `flaggedCount`, `sectionBreakdown`
+- Actions: `createSession`, `loadSession`, `saveAnswer`, `submitSession`, `nextQuestion`, `prevQuestion`, `goToQuestion`, `toggleFlag`, `isFlagged`, `reset`
+- **Sends `Authorization: Bearer <jwt>` header on all API requests when authenticated**
 
-#### `exam.js` (LEGACY — Reactive)
-- Still imports `../../local_data/N5 - 2010-2011.json`
-- Has its own scoring, theming (lavender, philia, wisteria, mauve), dark mode toggle
-- Likely **unused** in current views; new flow uses `session.js`
-- **Risk:** Dead code or conflicting state if referenced.
+#### `auth.js` (Pinia)
+- State: `user`, `session`, `isLoading`
+- Computed: `isAuthenticated`, `accessToken`, `discordUsername`, `discordAvatar`
+- Actions: `init()` (calls `getSession` + sets up `onAuthStateChange`), `signInWithDiscord()`, `signOut()`
+
+### Composable: `useTheme.js`
+- `isDark` ref, `toggleTheme()` function
+- Persists to `localStorage` (`ayumu_theme`)
+- Falls back to system `prefers-color-scheme` on first visit
+- Theme toggle (☀/🌙) in header of all pages
 
 ### Views
 
-#### LandingPage.vue
-- Big "Start N5 Exam" button → calls `sessionStore.createSession('N5', 'balanced_75')`
-- Loading spinner state
-- Link to `/profile`
-- Uses `primary-*` Tailwind colors with dark mode (`dark:bg-[#0a0a0c]`)
+#### LandingPage.vue (dashboard)
+- Header: AYUMU logo + theme toggle + Leaderboard link + user avatar + sign in/out
+- **Start Exam card:** Level grid (N5–N1) + "Start Exam" button
+- **Your Stats card** (auth only): Exams, streak, avg %, best score, rank, XP
+- **Sign In card** (anon only): Discord logo + CTA + sign-in button
+- **Leaderboard card:** Top 5 entries, link to full board
+- Responsive: single column on mobile, 2-col grid on md+
 
-#### ExamPage.vue
-- Header: "AYUMU." logo + level + EXIT button
-- Main area: `QuestionArea` component
-- Sidebar (`md:w-80`): `QuestionMap` component
-- Navigation: PREVIOUS / NEXT / SUBMIT buttons
-- Handles session loading on mount, quit confirmation
+#### ExamPage.vue (responsive)
+- **Desktop:** Split layout — QuestionArea (left) + QuestionMap sidebar (right, 280px)
+- **Tablet:** Same but sidebar narrower (224px)
+- **Mobile:** Single column, sidebar becomes full-screen overlay triggered by ☰ button
+- Header: AYUMU. + section label + timer + ☰ navigator + EXIT
+- Uses `Teleport` for mobile QuestionMap overlay
+- Replaced native `confirm()` with inline modal dialog for submit/exit
 
-#### ResultsPage.vue
-- Score display (large number)
-- Accuracy % and time spent
-- New achievements unlocked (if any)
-- RESTART TEST → creates new session
-- MAIN MENU → goes home
+#### LeaderboardPage.vue
+- Period tabs: All-time / Monthly / Weekly
+- Level filter dropdown: All / N1–N5
+- Ranked list with trophy icons (🥇🥈🥉) for top 3
+- Fetches `GET /api/leaderboard?limit=50`
 
 #### ProfilePage.vue
-- Rank icon (Beginner 🌱 → Sensei 👑)
-- Stats: total exams, best score, streak, avg score
-- Achievements list
-- Recent results list
-- "START EXAM" button
+- Auth-aware: shows Discord avatar when signed in
+- Anonymous prompt: "Sign in with Discord to save your progress permanently"
+- **Claim flow:** When authenticated, shows "Claim Progress" button to transfer anonymous data
+- Stats, achievements, recent results — same as before
 
 ### Components
 
 #### QuestionArea.vue
-- Displays: question number badge, context (uppercase), prompt (with furigana), passage, images
-- **Furigana system:** Hardcoded `furiganaMap` for N5 kanji. Uses regex replacement + HTML tooltip spans with `group-hover`.
-- 4-option grid (2-col on desktop): numbered circles + labels
-- Selected state: `border-primary-600 bg-primary-50`
-- Calls `sessionStore.saveAnswer(index, optionId)` on click
+- Displays: question number badge, context (uppercase), prompt, passage, images, audio player
+- **Audio player:** Play/pause toggle, progress bar (seek visual), time display, mute toggle + volume slider
+- **Fixed scoring bug:** Sends `opt.value` (original `option_value`) not `opt.id` (display index)
+- Options grid with selected state highlighting
+- Flag for review button with amber badge
 
 #### QuestionMap.vue
-- 5-column grid of buttons for each question
-- Color coding:
-  - Current: `border-primary-600 ring-4`
-  - Answered: `bg-primary-600 text-white`
-  - Unanswered: `bg-primary-50 text-primary-400`
-- Shows answered count / total
-- "FINISH EXAM" button emits `@submit`
+- Section-collapsible navigator (Grammar, Reading, Listening)
+- 6-col grid of question numbers
+- Color coding: current (gray), answered (emerald), flagged (amber), unanswered (white)
+- Answered count / total + progress bar
+- "FINISH ASSESSMENT" button → emits `submit` via `defineEmits`
 
-### Styling
-- **Tailwind CSS v4** with custom primary color scale
-- **Dark mode:** Manual via class toggling (`dark:bg-[#0a0a0c]`)
-- **Font:** Plus Jakarta Sans (Google Fonts), Hiragino Kaku Gothic ProN for Japanese
-- **Global utilities:** `.no-scrollbar`, `::selection` color
+#### Toast.vue
+- Fixed top-right notification with auto-dismiss (4s)
+- Types: success (emerald), error (red), info (blue), warning (yellow)
 
 ---
 
 ## 4. Backend Summary
 
-### Main Server (`Server/index.js`)
+### Auth Middleware (`Server/middleware/auth.js`)
 
-**Environment Loading:**
-- Custom `loadEnvFile()` parses `.env` manually (doesn't use dotenv package)
-- Variables: `PORT`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`/`SUPABASE_ANON_KEY`, `CLIENT_URL`
+**Priority (updated):**
+1. `X-Discord-User-Id` header → looks up/creates user by `discord_id` (bot path)
+2. `Authorization: Bearer <jwt>` → verifies JWT via Supabase JWKS endpoint using `jose`, resolves `auth_id`
+3. Anonymous cookie `ayumu_tanin_id` → 7-day httpOnly cookie, auto-creates anonymous user
 
-**Middleware:**
-- `cors()` with origin whitelist from `CLIENT_URL` or defaults
-- `express.json()`
-- `cookieParser()`
-
-**Supabase Integration:**
-- `supabaseRequest(table, query, options)` — generic REST client using `fetch`
-- Headers: `apikey` + `Authorization: Bearer {key}`
-- `requireSupabaseConfig()` throws 500 if env vars missing
-
-**Key Helpers:**
-- `loadQuizByQuestionIds(questionIds)` — bulk fetches questions, options, assets, passages, exercises. Returns sanitized data.
-- `groupBy(items, key)` — groups array into Map
-- `sanitizeQuestion()`, `sanitizeOption()`, `sanitizeAsset()` — strip sensitive fields
-- `assetUrl(asset)` — prefers `local_path` over `source_url`
-- `encodeFilterValue()`, `inFilter()` — Supabase query encoding
-
-**Seeded Randomization:**
-- `seededRandom(seed)` — SHA256-based LCG
-- `shuffleWithSeed(items, seed)` — Fisher-Yates with seeded RNG
-
-**Package Generation:**
-- `buildQuestionUnits(section, questions)` — groups by `source_group_key` or `passage_id`
-- `pickExactQuestionCount(units, targetCount)` — DP subset sum to hit exact question count per section
-- `loadCandidateUnits(level, section, seed)` — fetches + shuffles units
-
-### Core Endpoints
-
-#### Health & Info
-- `GET /api/health` → `{ message, supabaseConfigured }`
-- `GET /api` → API info, version `2.0.0`, endpoint list
-
-#### Quiz
-- `GET /api/metadata` → levels, sections, counts per level/section
-- `GET /api/exercises?level=N5&section=grammar` → filtered exercise list
-- `GET /api/exercises/:id/quiz` → full quiz data for exercise (no answers)
-- `POST /api/questions/:id/answer` → `{ selectedOption }` → `{ correct, correctOption, answerNote }`
-
-#### Packages
-- `GET /api/packages?level=N3&userKey=test` → list user packages
-- `POST /api/packages` → generate `balanced_75` package
-  - Body: `{ level, userId, templateId }`
-  - Creates `user_quiz_packages` + `user_quiz_package_items`
-  - Returns package metadata + items created
-- `GET /api/packages/:id/quiz` → quiz data for a package
+**JWT Verification:** Uses `createRemoteJWKSet` against `https://<project>.supabase.co/auth/v1/.well-known/jwks.json`. No `SUPABASE_JWT_SECRET` needed — works with any algorithm (ES256/RS256/HS256).
 
 ### Session Routes (`Server/routes/sessions.js`)
 
-Mounted at `/api/sessions` with `resolveUser` middleware.
-
-- `POST /api/sessions`
-  - Body: `{ level, template_id }`
-  - Loads template, builds units per section, shuffles, picks exact count
-  - Generates `option_orders` (shuffled 1-4 for each question)
-  - Creates `user_sessions` record with `session_code`, `question_ids`, `option_orders`, `user_answers: {}`
-  - Returns `{ session_code, url, question_count, expires_at }`
-
-- `GET /api/sessions/:code`
-  - Loads session, checks expiry (auto-updates to `expired`)
-  - Loads questions via `loadQuizByQuestionIds`
-  - Applies `option_orders` to shuffle options per question
-  - Returns `{ session, questions }`
-
-- `POST /api/sessions/:code/answer`
-  - Body: `{ question_index, selected_option }`
-  - Updates `user_answers` JSONB in session
-  - Returns `{ success }`
-
-- `POST /api/sessions/:code/submit`
-  - Validates all answers against `quiz_questions` + `quiz_question_options`
-  - Calculates score, percentage, time spent
-  - Updates session status → `completed`
-  - Creates `user_results` record
-  - Calls `updateStreak()` and `checkAchievements()`
-  - Returns `{ score, total, percentage, time_spent_seconds, new_achievements }`
-
-- `POST /api/sessions/claim`
-  - Body: `{ anonymous_user_id }`
-  - Transfers all data from anonymous user to authenticated Discord user
-  - Updates: `user_sessions`, `user_results`, `user_achievements`, `user_stats`
-  - Deletes anonymous user from `users`
-
-**Helpers in sessions.js:**
-- `updateStreak(supabaseRequest, userId, score, total)` — daily streak tracking via `user_streaks`
-- `checkAchievements(...)` — checks achievement conditions:
-  - `FIRST_EXAM`, `EXAM_10`, `EXAM_50`, `EXAM_100`
-  - `PERFECT_N5`, `PERFECT_N4`
-  - `SPEED_DEMON` (N5 under 30 min)
+- `POST /api/sessions/claim` — now reads anonymous UUID from `ayumu_tanin_id` cookie (no body required). Clears cookie after successful claim. Verifies target user is not anonymous.
+- Fixed Supabase query bugs: `updateStreak` (`,`→`&` + missing `eq.`) and `checkAchievements` (duplicate `select=count`)
 
 ### Profile Routes (`Server/routes/profile.js`)
+- `GET /api/leaderboard?period=alltime&level=N3&limit=50` — filtering by period and level
 
-Mounted at `/api` with `resolveUser` middleware.
-
-- `GET /api/profile`
-  - Returns: user info, stats, rank, achievements (with details), recent results
-  - Rank calculation based on XP thresholds
-
-- `GET /api/leaderboard?level=&period=alltime&limit=10`
-  - Periods: `alltime`, `weekly`, `monthly`
-  - Aggregates by user, sorts by total score
-  - Enriches with user details
-
-- `GET /api/leaderboard/:userId/rank`
-  - Returns user's global rank position
-
-**Helpers:**
-- `calculateRank(xp)` → Beginner (500) → Apprentice (1500) → Scholar (5000) → Master (10000) → Sensei
-
-### Auth Middleware (`Server/middleware/auth.js`)
-
-**Priority:**
-1. `X-Discord-User-Id` header → looks up/creates user by `discord_id`
-2. Supabase Auth JWT (placeholder/TODO)
-3. Anonymous cookie `ayumu_tanin_id` (7-day, httpOnly, secure in prod)
-   - Auto-creates anonymous user in `users` table if missing
-
-**Exports:**
-- `resolveUser` — attaches `req.userId`
-- `requireAuth` — returns 401 if no userId
-- `generateSessionCode()` — `aym_` + 8-char nanoid
+### Database - `handle_new_user()` trigger
+- Updated to populate `discord_id` from `raw_user_meta_data.provider_id` (Discord OAuth snowflake)
+- This links Supabase Auth users to the same `discord_id` column the bot uses
 
 ---
 
-## 5. Database Schema
+## 5. Discord Bot Integration (Rust-Yuyuko)
 
-### Quiz Data Tables
+Located at `D:\Programming\Open Source\Rust-Yuyuko` (separate repo).
 
-| Table | Records | Purpose |
-|-------|---------|---------|
-| `quiz_exercises` | 700 | Exercise metadata (level, section, title, slug) |
-| `quiz_questions` | 5,531 | Main question bank (prompt, context, answer_value, answer_note) |
-| `quiz_question_options` | 22,001 | Answer choices (option_value, option_label, sort_order, is_correct) |
-| `quiz_passages` | 381 | Reading passages (title, content) |
-| `quiz_assets` | 2,089 | Audio & image assets (source_url, local_path) |
-| `quiz_shared_question_groups` | 215 | Group summaries (reading passages) |
-| `quiz_package_templates` | 1 | `balanced_75` template (15 per section) |
-| `user_quiz_packages` | 14 | Generated user packages |
-| `user_quiz_package_items` | 1,050 | Package contents with ordering |
+### Commands
+| Command | Description |
+|---------|-------------|
+| `y!exam N5` / `/exam` | Creates JLPT exam session via Ayumu API, returns web link |
+| `y!profile` / `/profile` | Shows Discord user's Ayumu stats, rank, achievements |
+| `y!leaderboard` / `/leaderboard` | JLPT leaderboard |
 
-### Session/User Tables
+### Integration
+- Sends `X-Discord-User-Id: <discord_snowflake>` header to Ayumu API
+- Auto-creates users on first use (via `resolveUser` middleware priority 1)
+- Exam link opens in web — anonymous in browser, but results flow to Discord user via session ownership
+- Requires `firebase-key.json` (placeholder works for Ayumu-only testing)
 
-| Table | Purpose |
-|-------|---------|
-| `users` | User accounts (Discord + Anonymous) |
-| `user_sessions` | Active exam sessions (code, questions, answers, status) |
-| `user_results` | Completed exam results (score, percentage, time) |
-| `user_stats` | Aggregated user statistics |
-| `user_streaks` | Daily streak tracking |
-| `user_achievements` | Unlocked achievements |
-| `achievements` | Achievement definitions (code, name, description, points) |
+### Setup
+```powershell
+# .env
+DISCORD_TOKEN=<bot-token>
+AYUMU_API_URL=http://localhost:5000
+RUST_LOG=ayumi_rs=debug
 
-### Key Data Quality Notes
-- `quiz_questions.prompt` null: 905 questions
-- `quiz_questions.context` null: 3,297 questions
-- `quiz_questions.answer_note` null: 1,993 questions
-- UI must handle missing prompt/context by falling back to assets/passages
-- `is_correct` null: 4 options (out of 22,001)
+cargo run --release
+```
 
 ---
 
-## 6. API Endpoints Reference
+## 6. Supabase Auth (Discord OAuth)
+
+### Flow
+1. User clicks "Sign in with Discord" → Supabase Auth Discord OAuth redirect
+2. After authorization, `handle_new_user()` trigger creates `public.users` row with `discord_id`
+3. Frontend stores JWT in session
+4. All subsequent API calls include `Authorization: Bearer <jwt>` header
+5. Backend `resolveUser` (priority 2) verifies JWT via JWKS, resolves `req.userId`
+
+### Trigger: `handle_new_user()`
+```sql
+INSERT INTO public.users (id, auth_id, discord_id, username, display_name, avatar_url, is_anonymous)
+VALUES (NEW.id, NEW.id, NEW.raw_user_meta_data->>'provider_id', ...)
+```
+
+### Identity Unification
+```
+Bot path:  X-Discord-User-Id → lookup by discord_id
+Web path:  Supabase JWT       → lookup by auth_id → same row (discord_id set by trigger)
+```
+
+Both paths resolve to the same `public.users` row.
+
+---
+
+## 7. API Endpoints Reference
 
 ```
 GET    /api/health
@@ -353,61 +256,62 @@ POST   /api/sessions
 GET    /api/sessions/:code
 POST   /api/sessions/:code/answer
 POST   /api/sessions/:code/submit
-POST   /api/sessions/claim
+POST   /api/sessions/claim            # Reads anon cookie, no body required
 
 GET    /api/profile
-GET    /api/leaderboard?level=&period=&limit=
+GET    /api/leaderboard?level=&period=alltime|weekly|monthly&limit=10
 GET    /api/leaderboard/:userId/rank
 ```
 
 ---
 
-## 7. Environment & Configuration
+## 8. Environment & Configuration
 
-### Client `.env` / `.env.example`
-- `VITE_API_URL` — optional, defaults to '' (relative, uses Vite proxy)
+### Client `.env`
+```
+VITE_SUPABASE_URL=https://kjulcuhfrmlzezfyvapn.supabase.co
+VITE_SUPABASE_ANON_KEY=<anon-key>
+```
 
-### Server `.env` / `.env.example`
-- `PORT` — server port (default: 5000)
-- `SUPABASE_URL` — Supabase project URL
-- `SUPABASE_SERVICE_ROLE_KEY` — **NEVER commit this. Rotate if leaked.**
-- `SUPABASE_ANON_KEY` — fallback key
-- `CLIENT_URL` — comma-separated allowed CORS origins
+### Server `.env`
+```
+SUPABASE_URL=https://kjulcuhfrmlzezfyvapn.supabase.co
+SUPABASE_ANON_KEY=<anon-key>
+SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
+CLIENT_URL=http://localhost:3000
+PORT=5000
+```
 
 ### Vite Proxy (`Client/vite.config.js`)
 ```js
 proxy: {
-  '/api': {
-    target: 'http://localhost:5000',
-    changeOrigin: true,
-  }
+  '/api': { target: 'http://localhost:5000', changeOrigin: true }
 }
 ```
 
 ---
 
-## 8. Known Issues & TODOs
+## 9. Known Issues & TODOs
 
 | Issue | Severity | Details |
 |-------|----------|---------|
-| `nodemon` missing | Medium | `Server/package.json` has `npm run dev` script using `nodemon`, but it's not in `devDependencies`. `npm start` works. |
-| Legacy `exam.js` store | Low | Imports local JSON, has unused scoring logic. May be dead code. Verify before deleting. |
-| Service Role Key | High | Was previously shared in chat. **Must rotate before production.** Currently in `.env`. |
-| Supabase Auth JWT | Medium | `auth.js` has TODO placeholder for JWT verification. Only Discord header + anon cookie implemented. |
+| Service Role Key | High | Was previously shared. Rotate before production. |
+| Supabase Auth redirect URL | Medium | Currently set for local dev. Needs production URL in Discord OAuth2 app. |
 | No tests | Medium | No test framework configured for frontend or backend. |
-| No input validation | Low | API endpoints lack structured validation (e.g., zod, joi). Simple checks only. |
-| Frontend hardcodes N5 | Low | LandingPage always starts `N5` exam. No level selector UI yet. |
-| Emoji in rank icons | Low | `calculateRank()` uses emoji (🌱📚🎓⭐👑). May render poorly on some Windows terminals. |
+| No input validation | Low | API endpoints lack structured validation (zod, joi). |
+| Audio source_url | Low | Uses Supabase storage URL directly. May need CORS or local serving for large files. |
+| `SECURITY DEFINER` functions | Low | `handle_new_user`, `update_user_stats`, `rls_auto_enable` callable by anon/authenticated. Should revoke EXECUTE. |
+| Quiz tables have RLS but no policies | Info | Expected — accessed via service_role key server-side only. |
 
 ---
 
-## 9. Dependencies
+## 10. Dependencies
 
 ### Client (`Client/package.json`)
 ```json
 {
   "dependencies": {
-    "@supabase/supabase-js": "^2.105.1",
+    "@supabase/supabase-js": "^2.49.4",
     "pinia": "^3.0.4",
     "vue": "^3.5.32",
     "vue-router": "^4.6.4"
@@ -415,7 +319,6 @@ proxy: {
   "devDependencies": {
     "@tailwindcss/postcss": "^4.2.2",
     "@vitejs/plugin-vue": "^6.0.6",
-    "autoprefixer": "^10.5.0",
     "postcss": "^8.5.9",
     "tailwindcss": "^4.2.2",
     "vite": "^8.0.8"
@@ -429,45 +332,32 @@ proxy: {
   "dependencies": {
     "cors": "^2.8.6",
     "express": "^5.2.1",
+    "jose": "^6.0.10",
     "pg": "^8.20.0"
-  }
-}
-```
-
-### Root (`package.json`)
-```json
-{
-  "dependencies": {
-    "cookie-parser": "^1.4.7",
-    "nanoid": "^5.1.9"
   }
 }
 ```
 
 ---
 
-## 10. Development Workflow
+## 11. Development Workflow
 
-### Install Dependencies
+### Install
 ```bash
 cd Client && npm install
 cd ../Server && npm install
 ```
 
-### Run Locally
-**Terminal 1 (Backend):**
+### Run
 ```bash
-cd Server
-npm start        # node index.js (port 5000)
-# OR install nodemon first:
-npm install --save-dev nodemon
-npm run dev
-```
+# Terminal 1: Backend
+cd Server && npm start
 
-**Terminal 2 (Frontend):**
-```bash
-cd Client
-npm run dev      # vite (port 3000)
+# Terminal 2: Frontend
+cd Client && npm run dev
+
+# Terminal 3: Bot (optional)
+cd D:\Programming\Open Source\Rust-Yuyuko && cargo run --release
 ```
 
 ### Verify
@@ -477,22 +367,22 @@ npm run dev      # vite (port 3000)
 
 ---
 
-## 11. Critical Implementation Notes
+## 12. Critical Implementation Notes
 
 ### Security
-- **Never expose `is_correct`, `answer_value`, `answer_note` to frontend before answering.** The backend already sanitizes these in quiz responses.
-- **Atomic units:** Questions sharing `source_group_key` or `passage_id` must stay together in packages. The DP algorithm in `pickExactQuestionCount` enforces this at the unit level.
-- **Anonymous users:** Cookie-based (`ayumu_tanin_id`, 7 days, httpOnly, lax). Progress can be claimed by Discord users later.
+- **Never expose `is_correct`, `answer_value`, `answer_note` to frontend before answering.**
+- **Anonymous users:** Cookie-based (`ayumu_tanin_id`, 7 days, httpOnly, lax). Progress claimed on Discord sign-in.
+- **Option orders:** Backend shuffles option display order per question. Frontend must send `option_value` (not display index) for scoring.
+- **Claim endpoint:** Reads anonymous UUID from cookie server-side. No body required. Clears cookie after transfer.
 
-### Data Handling
-- Some questions lack `prompt` or `context`. The UI should treat `prompt` as optional and display assets/passages as primary content when missing.
-- Audio assets: listening sections need audio player support.
-- Image assets: reading/listening may have images. Fallback UI needed if `source_url` fails.
+### Scoring
+- Backend compares `user_answers[index]` against `quiz_question_options.option_value` (original value, not shuffled position).
+- Frontend must send original `opt.value` from the option object.
 
-### Performance
-- `loadQuizByQuestionIds` batches all related data in 4 parallel Supabase requests (options, assets, passages, exercises).
-- `inFilter` handles up to 1000 question IDs safely.
-- Asset loading currently uses external `source_url`. Consider mirroring to Supabase Storage or CDN for stability.
+### Authentication Flow
+- Anonymous exams: auto-create user → cookie → can start exams immediately
+- Discord sign-in: Supabase OAuth → JWT → backend verifies → resolves to same user
+- Claim: transfers anonymous sessions/results/stats/achievements to authenticated user, deletes anonymous record
 
 ---
 

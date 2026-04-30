@@ -9,6 +9,11 @@ const props = defineProps({
 
 const sessionStore = useSessionStore()
 const audioRef = ref(null)
+const isPlaying = ref(false)
+const audioCurrentTime = ref(0)
+const audioDuration = ref(0)
+const audioVolume = ref(1)
+const isMuted = ref(false)
 
 const sectionDisplayMap = {
   grammar: 'GRAMMAR / 文字・語彙',
@@ -43,6 +48,82 @@ const options = computed(() => {
     value: opt.value || opt.option_value || String(idx + 1),
   }))
 })
+
+const audioUrl = computed(() => {
+  if (!audioAsset.value?.url) return null
+  if (audioAsset.value.url.startsWith('/') && !audioAsset.value.url.startsWith('//')) {
+    return (import.meta.env.VITE_API_URL || '') + audioAsset.value.url
+  }
+  return audioAsset.value.url
+})
+
+function formatTime(seconds) {
+  if (!seconds || !isFinite(seconds)) return '0:00'
+  const m = Math.floor(seconds / 60)
+  const s = Math.floor(seconds % 60)
+  return `${m}:${String(s).padStart(2, '0')}`
+}
+
+function togglePlay() {
+  const audio = audioRef.value
+  if (!audio) return
+  if (audio.paused) {
+    audio.play()
+    isPlaying.value = true
+  } else {
+    audio.pause()
+    isPlaying.value = false
+  }
+}
+
+function onAudioTimeUpdate() {
+  const audio = audioRef.value
+  if (!audio) return
+  audioCurrentTime.value = audio.currentTime
+  if (audio.duration && isFinite(audio.duration)) {
+    audioDuration.value = audio.duration
+  }
+}
+
+function onAudioLoaded() {
+  const audio = audioRef.value
+  if (!audio) return
+  if (audio.duration && isFinite(audio.duration)) {
+    audioDuration.value = audio.duration
+  }
+}
+
+function onAudioEnded() {
+  isPlaying.value = false
+}
+
+function onSeek(e) {
+  const audio = audioRef.value
+  if (!audio) return
+  audio.currentTime = parseFloat(e.target.value)
+}
+
+function onVolumeChange(e) {
+  const audio = audioRef.value
+  if (!audio) return
+  const vol = parseFloat(e.target.value)
+  audio.volume = vol
+  audioVolume.value = vol
+  isMuted.value = vol === 0
+}
+
+function toggleMute() {
+  const audio = audioRef.value
+  if (!audio) return
+  if (isMuted.value) {
+    audio.volume = audioVolume.value || 1
+    isMuted.value = false
+    audioVolume.value = audio.volume
+  } else {
+    audio.muted = true
+    isMuted.value = true
+  }
+}
 
 const selectedOptionId = computed(() => sessionStore.userAnswers[props.index])
 
@@ -90,23 +171,41 @@ const toggleFlag = () => {
     </div>
 
     <!-- Audio Player (listening only) -->
-    <div v-if="isListening && audioAsset" class="px-6 pt-4">
+    <div v-if="isListening && audioUrl" class="px-6 pt-4">
       <div class="bg-gray-800 dark:bg-gray-900 rounded-lg p-3 flex items-center gap-3">
-        <audio ref="audioRef" :src="audioAsset.url" class="hidden" controls></audio>
+        <audio ref="audioRef" :src="audioUrl" class="hidden"
+          @timeupdate="onAudioTimeUpdate"
+          @loadedmetadata="onAudioLoaded"
+          @ended="onAudioEnded"
+          @play="isPlaying = true"
+          @pause="isPlaying = false"></audio>
         <div class="flex items-center gap-2 w-full">
-          <button @click="$refs.audioRef?.play()" class="text-white hover:text-gray-300 transition-colors">
-            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+          <button @click="togglePlay" class="text-white hover:text-gray-300 transition-colors cursor-pointer shrink-0">
+            <svg v-if="!isPlaying" class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
               <path d="M8 5v14l11-7z"/>
+            </svg>
+            <svg v-else class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
             </svg>
           </button>
           <div class="flex-1 h-1 bg-gray-600 rounded-full overflow-hidden">
-            <div class="h-full bg-white rounded-full" style="width: 0%"></div>
+            <div class="h-full bg-white rounded-full transition-all duration-150" :style="{ width: audioDuration ? (audioCurrentTime / audioDuration) * 100 + '%' : '0%' }"></div>
           </div>
-          <span class="text-xs text-gray-400 font-mono">0:00 / 0:25</span>
-          <svg class="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
-          </svg>
-          <input type="range" min="0" max="1" step="0.1" class="w-16 accent-white" />
+          <span class="text-xs text-gray-400 font-mono whitespace-nowrap">{{ formatTime(audioCurrentTime) }} / {{ formatTime(audioDuration) }}</span>
+          <button @click="toggleMute" class="text-gray-400 hover:text-white transition-colors cursor-pointer shrink-0">
+            <svg v-if="isMuted || audioVolume === 0" class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>
+            </svg>
+            <svg v-else-if="audioVolume < 0.5" class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M18.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM5 9v6h4l5 5V4L9 9H5z"/>
+            </svg>
+            <svg v-else class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+            </svg>
+          </button>
+          <input type="range" min="0" max="1" :value="isMuted ? 0 : audioVolume" step="0.05"
+            @input="onVolumeChange"
+            class="w-12 sm:w-16 accent-white shrink-0 cursor-pointer" />
         </div>
       </div>
     </div>
