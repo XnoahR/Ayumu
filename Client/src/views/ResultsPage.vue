@@ -1,25 +1,35 @@
 <script setup>
 import { useRouter } from 'vue-router'
-import { examStore } from '../store/exam.js'
-import { onMounted } from 'vue'
+import { useSessionStore } from '../store/session.js'
+import { computed } from 'vue'
 
 const router = useRouter()
+const sessionStore = useSessionStore()
 
-onMounted(() => {
-  if (!examStore.currentSession) {
-    router.push({ name: 'home' })
+const score = computed(() => sessionStore.submitResult?.score || 0)
+const total = computed(() => sessionStore.submitResult?.total || 0)
+const percentage = computed(() => sessionStore.submitResult?.percentage || 0)
+const timeSpent = computed(() => sessionStore.submitResult?.time_spent_seconds || 0)
+const newAchievements = computed(() => sessionStore.submitResult?.new_achievements || [])
+
+const formatTime = (seconds) => {
+  const mins = Math.floor(seconds / 60)
+  const secs = seconds % 60
+  return `${mins}m ${secs}s`
+}
+
+const restart = async () => {
+  sessionStore.reset()
+  try {
+    const data = await sessionStore.createSession('N5', 'balanced_75')
+    router.push({ name: 'exam', params: { sessionCode: data.session_code } })
+  } catch (error) {
+    alert('Failed to start new exam')
   }
-})
-
-const restart = () => {
-  const session = examStore.currentSession
-  examStore.reset()
-  examStore.startSession(session)
-  router.push({ name: 'exam', params: { sessionType: session } })
 }
 
 const goHome = () => {
-  examStore.reset()
+  sessionStore.reset()
   router.push({ name: 'home' })
 }
 </script>
@@ -35,15 +45,36 @@ const goHome = () => {
       <h2 class="text-4xl font-black mb-4 text-primary-950 dark:text-white">Simulation Ended</h2>
       <p class="text-primary-400 dark:text-primary-500/50 font-black mb-12 uppercase tracking-[0.4em] text-[10px]">Your performance scorecard</p>
       
-      <div class="flex flex-col sm:flex-row items-center justify-center gap-8 sm:gap-12 mb-16">
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-8 sm:gap-12 mb-8">
         <div class="text-center sm:text-left">
-          <p class="text-7xl font-black text-primary-600 leading-none">{{ examStore.calculateScore }}</p>
+          <p class="text-7xl font-black text-primary-600 leading-none">{{ score }}</p>
           <p class="text-[10px] font-black text-primary-400 dark:text-primary-500/50 uppercase tracking-widest mt-3">Correct</p>
         </div>
         <div class="w-24 h-px sm:w-px sm:h-24 bg-primary-100 dark:bg-primary-900/50 rounded-full"></div>
         <div class="text-center sm:text-left">
-          <p class="text-7xl font-black text-primary-950/20 dark:text-primary-50/20 leading-none">{{ examStore.activeQuestions.length }}</p>
+          <p class="text-7xl font-black text-primary-950/20 dark:text-primary-50/20 leading-none">{{ total }}</p>
           <p class="text-[10px] font-black text-primary-400 dark:text-primary-500/50 uppercase tracking-widest mt-3">Total</p>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-center gap-6 mb-8">
+        <div class="text-center">
+          <p class="text-3xl font-black text-primary-600">{{ percentage }}%</p>
+          <p class="text-[10px] font-black text-primary-400 dark:text-primary-500/50 uppercase tracking-widest">Accuracy</p>
+        </div>
+        <div class="w-px h-12 bg-primary-100 dark:bg-primary-900/50"></div>
+        <div class="text-center">
+          <p class="text-3xl font-black text-primary-600">{{ formatTime(timeSpent) }}</p>
+          <p class="text-[10px] font-black text-primary-400 dark:text-primary-500/50 uppercase tracking-widest">Time</p>
+        </div>
+      </div>
+
+      <div v-if="newAchievements.length > 0" class="mb-8 p-4 bg-primary-50 dark:bg-primary-900/20 rounded-xl">
+        <p class="text-xs font-black text-primary-400 uppercase tracking-widest mb-2">New Achievements Unlocked!</p>
+        <div class="flex flex-wrap gap-2 justify-center">
+          <span v-for="ach in newAchievements" :key="ach.code" class="px-3 py-1 bg-primary-600 text-white rounded-lg text-xs font-bold">
+            {{ ach.name }}
+          </span>
         </div>
       </div>
 

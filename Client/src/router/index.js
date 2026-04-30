@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import LandingPage from '../views/LandingPage.vue'
 import ExamPage from '../views/ExamPage.vue'
 import ResultsPage from '../views/ResultsPage.vue'
+import ProfilePage from '../views/ProfilePage.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -12,15 +13,21 @@ const router = createRouter({
       component: LandingPage
     },
     {
-      path: '/exam/:sessionType',
+      path: '/exam/:sessionCode',
       name: 'exam',
       component: ExamPage,
       props: true
     },
     {
-      path: '/results',
+      path: '/results/:sessionCode',
       name: 'results',
-      component: ResultsPage
+      component: ResultsPage,
+      props: true
+    },
+    {
+      path: '/profile',
+      name: 'profile',
+      component: ProfilePage
     }
   ]
 })

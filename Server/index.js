@@ -3,6 +3,7 @@ const path = require('path');
 const crypto = require('crypto');
 const express = require('express');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
 
 loadEnvFile(path.join(__dirname, '.env'));
 
@@ -11,8 +12,12 @@ const PORT = process.env.PORT || 5000;
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
 
-app.use(cors());
+app.use(cors({
+  origin: process.env.CLIENT_URL ? process.env.CLIENT_URL.split(',') : ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:5173'],
+  credentials: true,
+}));
 app.use(express.json());
+app.use(cookieParser());
 
 function loadEnvFile(filePath) {
   if (!fs.existsSync(filePath)) return;
@@ -211,6 +216,13 @@ async function loadQuizByQuestionIds(questionIds) {
   };
 }
 
+// Share helpers with routes
+app.locals.supabaseRequest = supabaseRequest;
+app.locals.loadQuizByQuestionIds = loadQuizByQuestionIds;
+
+// ═══════════════════════════════════════════════════════════════
+// Health & Info
+// ═══════════════════════════════════════════════════════════════
 app.get('/api/health', (req, res) => {
   res.json({
     message: 'Server is running!',
@@ -221,19 +233,36 @@ app.get('/api/health', (req, res) => {
 app.get('/api', (req, res) => {
   res.json({
     message: 'Welcome to Ayumu API',
-    version: '1.0.0',
-  endpoints: [
-      '/api/metadata',
-      '/api/exercises',
-      '/api/exercises/:id/quiz',
-      '/api/questions/:id/answer',
-      '/api/packages',
-      'POST /api/packages',
-      '/api/packages/:id/quiz',
-    ],
+    version: '2.0.0',
+    endpoints: {
+      quiz: [
+        'GET /api/metadata',
+        'GET /api/exercises',
+        'GET /api/exercises/:id/quiz',
+        'POST /api/questions/:id/answer',
+        'GET /api/packages',
+        'POST /api/packages',
+        'GET /api/packages/:id/quiz',
+      ],
+      sessions: [
+        'POST /api/sessions',
+        'GET /api/sessions/:code',
+        'POST /api/sessions/:code/answer',
+        'POST /api/sessions/:code/submit',
+        'POST /api/sessions/claim',
+      ],
+      profile: [
+        'GET /api/profile',
+        'GET /api/leaderboard',
+        'GET /api/leaderboard/:userId/rank',
+      ],
+    },
   });
 });
 
+// ═══════════════════════════════════════════════════════════════
+// Existing Quiz Endpoints (unchanged)
+// ═══════════════════════════════════════════════════════════════
 app.get('/api/metadata', async (req, res, next) => {
   try {
     const exercises = await supabaseRequest('quiz_exercises', 'select=section,level&limit=1000');
@@ -353,9 +382,9 @@ app.get('/api/packages', async (req, res, next) => {
     const packages = await supabaseRequest(
       'user_quiz_packages',
       [
-        'select=id,user_key,level,template_id,package_number,title,question_count,unit_count,seed,created_at',
+        'select=id,user_id,level,template_id,package_number,title,question_count,unit_count,seed,created_at',
         `level=eq.${encodeFilterValue(level)}`,
-        `user_key=eq.${encodeFilterValue(userKey)}`,
+        `user_id=eq.${encodeFilterValue(userKey)}`,
         'order=package_number.asc',
         'limit=50',
       ].join('&')
@@ -455,7 +484,7 @@ async function loadCandidateUnits(level, section, seed) {
 
 app.post('/api/packages', async (req, res, next) => {
   try {
-    const { level = 'N3', userKey = 'test', templateId = 'balanced_75' } = req.body || {};
+    const { level = 'N3', userId, templateId = 'balanced_75' } = req.body || {};
     const [template] = await supabaseRequest(
       'quiz_package_templates',
       `select=id,name,total_questions,section_counts&id=eq.${encodeFilterValue(templateId)}&limit=1`
@@ -466,11 +495,13 @@ app.post('/api/packages', async (req, res, next) => {
       return;
     }
 
+    const userKey = userId || 'test';
+
     const latestPackages = await supabaseRequest(
       'user_quiz_packages',
       [
         'select=package_number',
-        `user_key=eq.${encodeFilterValue(userKey)}`,
+        `user_id=eq.${encodeFilterValue(userKey)}`,
         `level=eq.${encodeFilterValue(level)}`,
         `template_id=eq.${encodeFilterValue(templateId)}`,
         'order=package_number.desc',
@@ -501,7 +532,7 @@ app.post('/api/packages', async (req, res, next) => {
     const packageId = crypto.randomUUID();
     const packagePayload = {
       id: packageId,
-      user_key: userKey,
+      user_id: userKey,
       level,
       template_id: template.id,
       package_number: packageNumber,
@@ -562,7 +593,7 @@ app.get('/api/packages/:id/quiz', async (req, res, next) => {
     const packageId = req.params.id;
     const [quizPackage] = await supabaseRequest(
       'user_quiz_packages',
-      `select=id,user_key,level,template_id,package_number,title,question_count,unit_count,seed&id=eq.${encodeFilterValue(packageId)}&limit=1`
+      `select=id,user_id,level,template_id,package_number,title,question_count,unit_count,seed&id=eq.${encodeFilterValue(packageId)}&limit=1`
     );
 
     if (!quizPackage) {
@@ -614,6 +645,20 @@ app.get('/api/packages/:id/quiz', async (req, res, next) => {
   }
 });
 
+// ═══════════════════════════════════════════════════════════════
+// New Routes: Sessions & Profile
+// ═══════════════════════════════════════════════════════════════
+const { resolveUser } = require('./middleware/auth');
+const sessionRoutes = require('./routes/sessions');
+const profileRoutes = require('./routes/profile');
+
+// Apply user resolution to session and profile routes
+app.use('/api/sessions', resolveUser, sessionRoutes);
+app.use('/api', resolveUser, profileRoutes);
+
+// ═══════════════════════════════════════════════════════════════
+// Error Handler
+// ═══════════════════════════════════════════════════════════════
 app.use((error, req, res, next) => {
   console.error(error);
   res.status(error.status || 500).json({

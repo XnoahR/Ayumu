@@ -1,15 +1,13 @@
 <script setup>
 import { computed } from 'vue'
-import { examStore } from '../store/exam.js'
+import { useSessionStore } from '../store/session.js'
 
 const props = defineProps({
   question: Object,
   index: Number,
-  uiSize: {
-    type: String,
-    default: 'medium'
-  }
 })
+
+const sessionStore = useSessionStore()
 
 // N5 Dokkai Kanji Map for Hover Tooltip
 const furiganaMap = {
@@ -37,96 +35,89 @@ const furiganaMap = {
   "土": "ど", "同": "おな", "日": "ひ"
 }
 
-// Create a regex to match the longest words first
 const kanjiRegex = new RegExp(`(${Object.keys(furiganaMap).join('|')})`, 'g')
 
 const renderText = (text) => {
   if (!text) return ''
-  
-  let result = text
-  
-  // Highlight Target Word (Underline)
-  const target = props.question.Target_Word
-  if (target && target !== '-') {
-    const targetRegex = new RegExp(`(${target})`, 'g')
-    result = result.replace(targetRegex, '<span class="text-primary-700 dark:text-primary-300 underline decoration-primary-400 decoration-2 underline-offset-4">$1</span>')
-  }
-
-  // Furigana Hover (Only in Dokkai section, index >= 33)
-  if (props.index >= 33) {
-    result = result.replace(kanjiRegex, (match) => {
-      // Don't mess with HTML attributes if target word was already wrapped
-      if (match.includes('span')) return match; 
-      
-      const reading = furiganaMap[match]
-      return `<span class="relative group inline-block cursor-help text-primary-700 bg-primary-100/50 dark:bg-primary-900/30 px-1 rounded-md dark:text-primary-300 font-bold border-b-2 border-dashed border-primary-400 dark:border-primary-500">
-                ${match}
-                <span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-primary-900 text-white text-[10px] font-bold rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap shadow-lg z-10">
-                  ${reading}
-                  <svg class="absolute text-primary-900 h-2 w-full left-0 top-full" x="0px" y="0px" viewBox="0 0 255 255"><polygon class="fill-current" points="0,0 127.5,127.5 255,0"/></svg>
-                </span>
-              </span>`
-    })
-  }
-
-  return result
+  return text.replace(kanjiRegex, (match) => {
+    if (match.includes('span')) return match
+    const reading = furiganaMap[match]
+    return `<span class="relative group inline-block cursor-help text-primary-700 bg-primary-100/50 dark:bg-primary-900/30 px-1 rounded-md dark:text-primary-300 font-bold border-b-2 border-dashed border-primary-400 dark:border-primary-500">
+              ${match}
+              <span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-primary-900 text-white text-[10px] font-bold rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap shadow-lg z-10">
+                ${reading}
+                <svg class="absolute text-primary-900 h-2 w-full left-0 top-full" x="0px" y="0px" viewBox="0 0 255 255"><polygon class="fill-current" points="0,0 127.5,127.5 255,0"/></svg>
+              </span>
+            </span>`
+  })
 }
 
-const highlightedQuestion = computed(() => renderText(props.question.Question))
-const optionsHtml = computed(() => {
-  return [1, 2, 3, 4].map(n => renderText(props.question[`Option_${n}`]))
+const questionText = computed(() => {
+  if (!props.question) return ''
+  return renderText(props.question.prompt || props.question.context || '')
 })
 
-const isSelected = (n) => examStore.userAnswers[props.index] === n
+const options = computed(() => {
+  if (!props.question?.options) return []
+  return props.question.options.map((opt, idx) => ({
+    id: idx + 1,
+    label: renderText(opt.label || opt.option_label || ''),
+    value: opt.value || opt.option_value || String(idx + 1),
+  }))
+})
+
+const isSelected = (optionId) => sessionStore.userAnswers[props.index] === optionId
+
+const selectOption = (optionId) => {
+  sessionStore.saveAnswer(props.index, optionId)
+}
 </script>
 
 <template>
-  <div class="bg-white dark:bg-[#16161c] rounded-md border-2 border-primary-100 dark:border-primary-900/30 shadow-xl shadow-primary-200/20 dark:shadow-none w-full transition-all duration-300"
-       :class="uiSize === 'small' ? 'p-6 md:p-8' : 'p-8 md:p-12'">
+  <div class="bg-white dark:bg-[#16161c] rounded-md border-2 border-primary-100 dark:border-primary-900/30 shadow-xl shadow-primary-200/20 dark:shadow-none w-full transition-all duration-300 p-8 md:p-12">
     
     <div class="flex items-center gap-3 mb-4">
-      <span class="bg-primary-600 text-white text-[10px] font-black px-3 py-1.5 rounded-lg uppercase tracking-widest transition-colors duration-300">Question {{ index < 33 ? index + 1 : index - 33 + 1 }}</span>
+      <span class="bg-primary-600 text-white text-[10px] font-black px-3 py-1.5 rounded-lg uppercase tracking-widest transition-colors duration-300">Question {{ index + 1 }}</span>
       <div class="flex-1 h-px bg-primary-100 dark:bg-primary-900/30 transition-colors duration-300"></div>
     </div>
 
-    <p class="text-primary-500 dark:text-primary-400/50 font-bold mb-4 uppercase tracking-wider transition-colors duration-300"
-       :class="uiSize === 'small' ? 'text-[10px]' : 'text-xs'">
-      {{ question.Instruction }}
+    <p v-if="question?.context" class="text-primary-500 dark:text-primary-400/50 font-bold mb-4 uppercase tracking-wider transition-colors duration-300 text-xs">
+      {{ question.context }}
     </p>
 
-    <!-- Japanese Text -->
-    <div class="font-bold leading-[1.8] mb-8 text-primary-950 dark:text-white transition-all duration-300" 
-         :class="uiSize === 'small' ? 'text-lg md:text-xl' : 'text-xl md:text-2xl'"
-         v-html="highlightedQuestion">
+    <div class="font-bold leading-[1.8] mb-8 text-primary-950 dark:text-white transition-all duration-300 text-xl md:text-2xl"
+         v-html="questionText">
     </div>
 
-    <div v-if="question.Gambar !== '-'" class="mb-8 rounded-xl overflow-hidden bg-primary-50 dark:bg-primary-950/20 border-2 border-primary-100 dark:border-primary-900/20 flex justify-center transition-colors duration-300">
-      <img :src="question.Gambar" class="max-w-full h-auto max-h-64 object-contain p-4" />
+    <div v-if="question?.passage" class="mb-8 p-6 bg-primary-50 dark:bg-primary-950/20 border-2 border-primary-100 dark:border-primary-900/20 rounded-xl">
+      <h4 class="text-sm font-black text-primary-600 mb-2">Passage</h4>
+      <div class="text-base leading-[1.8] text-primary-900 dark:text-white" v-html="renderText(question.passage.content)"></div>
+    </div>
+
+    <div v-if="question?.assets?.length" class="mb-8 rounded-xl overflow-hidden bg-primary-50 dark:bg-primary-950/20 border-2 border-primary-100 dark:border-primary-900/20 flex justify-center">
+      <img v-for="asset in question.assets.filter(a => a.type === 'image')" :key="asset.id" :src="asset.url" class="max-w-full h-auto max-h-64 object-contain p-4" />
     </div>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-      <button v-for="(n, displayIdx) in (examStore.optionOrders[index] || [1, 2, 3, 4])" :key="n"
-        @click="examStore.selectOption(n)"
-        class="group flex items-center gap-3 rounded-xl border-2 transition-all text-left"
+      <button v-for="opt in options" :key="opt.id"
+        @click="selectOption(opt.id)"
+        class="group flex items-center gap-3 rounded-xl border-2 transition-all text-left p-4"
         :class="[
-          uiSize === 'small' ? 'p-3' : 'p-4',
-          isSelected(n) 
+          isSelected(opt.id) 
             ? 'border-primary-600 bg-primary-50 dark:bg-primary-600/20' 
             : 'border-primary-100 dark:border-primary-900/30 hover:border-primary-300 dark:hover:border-primary-700 bg-transparent'
         ]"
       >
-        <span class="flex items-center justify-center rounded-lg border-2 shrink-0 font-black transition-all"
+        <span class="flex items-center justify-center rounded-lg border-2 shrink-0 font-black transition-all w-7 h-7 text-sm"
           :class="[
-            uiSize === 'small' ? 'w-6 h-6 text-xs' : 'w-7 h-7 text-sm',
-            isSelected(n) ? 'bg-primary-600 border-primary-600 text-white' : 'border-primary-200 dark:border-primary-800 text-primary-400 dark:text-primary-600'
+            isSelected(opt.id) ? 'bg-primary-600 border-primary-600 text-white' : 'border-primary-200 dark:border-primary-800 text-primary-400 dark:text-primary-600'
           ]"
-        >{{ displayIdx + 1 }}</span>
-        <span class="font-bold" 
+        >{{ opt.id }}</span>
+        <span class="font-bold text-base md:text-lg" 
               :class="[
-                uiSize === 'small' ? 'text-sm md:text-base' : 'text-base md:text-lg',
-                isSelected(n) ? 'text-primary-900 dark:text-white' : 'text-primary-800 dark:text-primary-200'
+                isSelected(opt.id) ? 'text-primary-900 dark:text-white' : 'text-primary-800 dark:text-primary-200'
               ]" 
-              v-html="optionsHtml[n-1]">
+              v-html="opt.label">
         </span>
       </button>
     </div>

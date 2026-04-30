@@ -1,31 +1,49 @@
 <script setup>
-import { onMounted, onUnmounted } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { examStore } from '../store/exam.js'
+import { useSessionStore } from '../store/session.js'
 import QuestionArea from '../components/QuestionArea.vue'
 import QuestionMap from '../components/QuestionMap.vue'
 
 const router = useRouter()
+const sessionStore = useSessionStore()
+const isSubmitting = ref(false)
 
 const props = defineProps({
-  sessionType: String
+  sessionCode: String
 })
 
-onMounted(() => {
-  if (!examStore.currentSession) {
-    examStore.startSession('full_exam')
+onMounted(async () => {
+  if (!props.sessionCode) {
+    router.push({ name: 'home' })
+    return
+  }
+
+  try {
+    await sessionStore.loadSession(props.sessionCode)
+  } catch (error) {
+    alert('Session not found or expired')
+    router.push({ name: 'home' })
   }
 })
 
-const submitExam = () => {
-  if (confirm('Are you sure you want to finish the exam?')) {
-    router.push({ name: 'results' })
+const submitExam = async () => {
+  if (!confirm('Are you sure you want to finish the exam?')) return
+
+  isSubmitting.value = true
+  try {
+    await sessionStore.submitSession()
+    router.push({ name: 'results', params: { sessionCode: props.sessionCode } })
+  } catch (error) {
+    alert('Failed to submit exam')
+  } finally {
+    isSubmitting.value = false
   }
 }
 
 const quitSession = () => {
   if (confirm('Exit exam? Progress will not be saved.')) {
-    examStore.reset()
+    sessionStore.reset()
     router.push({ name: 'home' })
   }
 }
@@ -38,52 +56,48 @@ const quitSession = () => {
       <div class="flex items-center gap-6">
         <span class="text-xl font-black text-primary-600 tracking-tighter italic">AYUMU.</span>
         <div class="h-6 w-px bg-primary-200 dark:bg-primary-800 transition-colors duration-300"></div>
-        <span class="text-[10px] font-black uppercase tracking-[0.2em] text-primary-400">N5 Simulation</span>
+        <span class="text-[10px] font-black uppercase tracking-[0.2em] text-primary-400">{{ sessionStore.session?.level || 'N5' }} Simulation</span>
       </div>
       
       <div class="flex items-center gap-4">
-        <!-- Size Toggle -->
-        <button @click="examStore.toggleUiSize()" class="hidden md:flex items-center justify-center p-2 rounded-xl text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all border border-transparent hover:border-primary-200 dark:hover:border-primary-800" title="Toggle UI Size">
-          <svg v-if="examStore.uiSize === 'medium'" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
-          </svg>
-          <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14L21 3m0 0h-6m6 0v6M14 10l-3 3m-7 7l11-11M3 21h6m-6 0v-6" />
-          </svg>
-        </button>
-
         <button @click="quitSession" class="text-[10px] font-black text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20 px-4 py-2 rounded-xl transition-colors border border-transparent hover:border-rose-100 dark:hover:border-rose-900">
           EXIT
         </button>
       </div>
     </header>
 
-    <div class="flex flex-1 overflow-hidden flex-col md:flex-row">
+    <div v-if="sessionStore.isLoading" class="flex-1 flex items-center justify-center">
+      <svg class="animate-spin h-12 w-12 text-primary-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+      </svg>
+    </div>
+
+    <div v-else class="flex flex-1 overflow-hidden flex-col md:flex-row">
       <!-- Left: Question Area -->
       <main class="flex-1 overflow-y-auto p-4 md:p-8">
-        <div class="h-full flex flex-col justify-between mx-auto w-full transition-all duration-300" :class="examStore.uiSize === 'small' ? 'max-w-3xl' : 'max-w-[90%] xl:max-w-5xl'">
+        <div class="h-full flex flex-col justify-between mx-auto w-full">
           
           <QuestionArea 
-            v-if="examStore.currentQuestion" 
-            :question="examStore.currentQuestion" 
-            :index="examStore.currentIndex" 
-            :uiSize="examStore.uiSize"
+            v-if="sessionStore.currentQuestion" 
+            :question="sessionStore.currentQuestion" 
+            :index="sessionStore.currentIndex"
           />
 
           <!-- Controls -->
           <div class="flex items-center justify-between mt-8 w-full px-2">
-            <button @click="examStore.prevQuestion()" :disabled="examStore.currentIndex === 0"
+            <button @click="sessionStore.prevQuestion()" :disabled="sessionStore.currentIndex === 0"
               class="px-8 py-3 font-black rounded-xl text-xs tracking-widest text-primary-600 dark:text-primary-400 disabled:opacity-20 hover:bg-white dark:hover:bg-primary-900/20 transition-all border-2 border-transparent hover:border-primary-200 dark:hover:border-primary-800">
               PREVIOUS
             </button>
             <div class="flex gap-4">
-              <button v-if="examStore.currentIndex < examStore.activeQuestions.length - 1" @click="examStore.nextQuestion()"
+              <button v-if="sessionStore.currentIndex < sessionStore.totalQuestions - 1" @click="sessionStore.nextQuestion()"
                 class="px-10 py-3 bg-primary-600 hover:bg-primary-700 text-white text-xs tracking-widest font-black rounded-xl shadow-lg shadow-primary-600/30 transition-transform active:scale-95">
                 NEXT
               </button>
-              <button v-else @click="submitExam"
-                class="px-10 py-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs tracking-widest font-black rounded-xl shadow-lg shadow-emerald-600/30 transition-transform active:scale-95">
-                SUBMIT
+              <button v-else @click="submitExam" :disabled="isSubmitting"
+                class="px-10 py-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs tracking-widest font-black rounded-xl shadow-lg shadow-emerald-600/30 transition-transform active:scale-95 disabled:opacity-50">
+                {{ isSubmitting ? 'Submitting...' : 'SUBMIT' }}
               </button>
             </div>
           </div>
@@ -92,7 +106,7 @@ const quitSession = () => {
 
       <!-- Right: Sidebar -->
       <aside class="w-full md:w-80 lg:w-96 bg-white dark:bg-[#121216] border-t md:border-t-0 md:border-l border-primary-100 dark:border-primary-900/50 p-6 md:p-8 flex flex-col shrink-0 overflow-y-auto max-h-64 md:max-h-full transition-colors duration-300">
-        <QuestionMap :totalQuestions="examStore.activeQuestions.length" @submit="submitExam" />
+        <QuestionMap :totalQuestions="sessionStore.totalQuestions" @submit="submitExam" />
       </aside>
     </div>
   </div>
