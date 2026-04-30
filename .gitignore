@@ -140,3 +140,16 @@ vite.config.ts.timestamp-*
 
 # Qwen Code
 .qwen/
+
+# Project-specific local files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+Client/local_data/
+Client/dist/
+Client/.vite/
+Server/tmp/
+Server/temp/
