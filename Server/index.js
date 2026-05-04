@@ -93,11 +93,15 @@ function inFilter(values) {
 }
 
 function assetUrl(asset) {
+  if (asset.source_url) {
+    return asset.source_url;
+  }
+
   if (asset.local_path) {
     return asset.local_path.startsWith('/') ? asset.local_path : `/${asset.local_path}`;
   }
 
-  return asset.source_url;
+  return null;
 }
 
 function sanitizeAsset(asset) {
