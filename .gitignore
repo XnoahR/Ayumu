@@ -153,3 +153,6 @@ Client/dist/
 Client/.vite/
 Server/tmp/
 Server/temp/
+
+# Deploy scripts (contain credentials)
+Server/deploy_ayumu.py

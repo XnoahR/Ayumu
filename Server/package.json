@@ -11,9 +11,11 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "express": "^5.2.1",
-    "jose": "^6.0.10",
+    "jose": "^5.10.0",
+    "nanoid": "^3.3.7",
     "pg": "^8.20.0"
   }
 }

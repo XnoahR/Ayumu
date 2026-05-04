@@ -13,7 +13,7 @@ const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
 
 app.use(cors({
-  origin: process.env.CLIENT_URL ? process.env.CLIENT_URL.split(',') : ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:5173'],
+  origin: process.env.CLIENT_URL ? process.env.CLIENT_URL.split(',') : '*',
   credentials: true,
 }));
 app.use(express.json());
@@ -656,9 +656,17 @@ const profileRoutes = require('./routes/profile');
 app.use('/api/sessions', resolveUser, sessionRoutes);
 app.use('/api', resolveUser, profileRoutes);
 
-// ═══════════════════════════════════════════════════════════════
+// Serve built frontend in production
+const clientPath = path.join(__dirname, 'public');
+if (fs.existsSync(clientPath)) {
+  app.use(express.static(clientPath));
+  app.use((req, res, next) => {
+    if (req.path.startsWith('/api')) return next();
+    res.sendFile(path.join(clientPath, 'index.html'));
+  });
+}
+
 // Error Handler
-// ═══════════════════════════════════════════════════════════════
 app.use((error, req, res, next) => {
   console.error(error);
   res.status(error.status || 500).json({

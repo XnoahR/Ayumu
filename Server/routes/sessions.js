@@ -152,7 +152,7 @@ router.post('/', async (req, res, next) => {
 
     res.status(201).json({
       session_code: sessionCode,
-      url: `${process.env.CLIENT_URL || 'http://localhost:3000'}/exam/${sessionCode}`,
+      url: `${(process.env.CLIENT_URL || 'http://localhost:3000').split(',')[0].trim()}/exam/${sessionCode}`,
       question_count: allQuestionIds.length,
       expires_at: session.expires_at,
     });
