@@ -30,6 +30,10 @@ const isListening = computed(() => {
   return props.question?.section === 'listening'
 })
 
+const isReading = computed(() => {
+  return props.question?.section === 'reading'
+})
+
 const audioAsset = computed(() => {
   if (!props.question?.assets) return null
   return props.question.assets.find(a => a.type === 'audio')
@@ -55,6 +59,37 @@ const audioUrl = computed(() => {
     return (import.meta.env.VITE_API_URL || '') + audioAsset.value.url
   }
   return audioAsset.value.url
+})
+
+function buildPartsFallback(text, target) {
+  if (!text) return []
+  if (!target || !text.includes(target)) {
+    return [{ text, highlight: false }]
+  }
+
+  const parts = []
+  let start = 0
+  let index = text.indexOf(target)
+  while (index !== -1) {
+    if (index > start) parts.push({ text: text.slice(start, index), highlight: false })
+    parts.push({ text: target, highlight: true })
+    start = index + target.length
+    index = text.indexOf(target, start)
+  }
+  if (start < text.length) parts.push({ text: text.slice(start), highlight: false })
+  return parts
+}
+
+const contextParts = computed(() => {
+  const parts = props.question?.contextParts
+  if (Array.isArray(parts) && parts.length) return parts
+  return buildPartsFallback(props.question?.context || '', props.question?.contextTarget)
+})
+
+const promptParts = computed(() => {
+  const parts = props.question?.promptParts
+  if (Array.isArray(parts) && parts.length) return parts
+  return buildPartsFallback(props.question?.prompt || '', props.question?.promptTarget)
 })
 
 function formatTime(seconds) {
@@ -227,11 +262,15 @@ const toggleFlag = () => {
 
     <!-- Prompt / Context -->
     <div class="px-6 pt-4 pb-2">
-      <p v-if="question?.context" class="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">
-        {{ question.context }}
+      <p v-if="question?.context" class="text-base md:text-lg font-medium text-gray-900 dark:text-white leading-relaxed mb-2">
+        <span v-for="(part, partIndex) in contextParts" :key="`context-${partIndex}`"
+          :class="part.highlight && !isReading ? 'underline decoration-2 underline-offset-4 decoration-gray-900 dark:decoration-white' : ''"
+        >{{ part.text }}</span>
       </p>
       <p v-if="question?.prompt" class="text-base md:text-lg font-medium text-gray-900 dark:text-white leading-relaxed">
-        {{ question.prompt }}
+        <span v-for="(part, partIndex) in promptParts" :key="partIndex"
+          :class="part.highlight && !isReading ? 'underline decoration-2 underline-offset-4 decoration-gray-900 dark:decoration-white' : ''"
+        >{{ part.text }}</span>
       </p>
     </div>
 

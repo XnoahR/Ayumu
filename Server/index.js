@@ -123,16 +123,131 @@ function sanitizeOption(option) {
   };
 }
 
-function sanitizeQuestion(question, optionsByQuestion, assetsByQuestion, passagesById, assetsByPassage) {
+function splitAnswerNoteCandidates(answerNote) {
+  if (!answerNote) return [];
+
+  const candidates = answerNote
+    .split(/\s*(?:==?>|→)\s*/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  return [...new Set(candidates)];
+}
+
+function buildTextParts(text, target) {
+  if (!text) return [];
+  if (!target || !text.includes(target)) {
+    return [{ text, highlight: false }];
+  }
+
+  const parts = [];
+  let start = 0;
+  let index = text.indexOf(target);
+
+  while (index !== -1) {
+    if (index > start) {
+      parts.push({ text: text.slice(start, index), highlight: false });
+    }
+
+    parts.push({ text: target, highlight: true });
+    start = index + target.length;
+    index = text.indexOf(target, start);
+  }
+
+  if (start < text.length) {
+    parts.push({ text: text.slice(start), highlight: false });
+  }
+
+  return parts;
+}
+
+function isRedundantReadingContext(context, passageContent, section) {
+  if (!context || !passageContent) return false;
+  if (String(section || '').toLowerCase() !== 'reading') return false;
+
+  const normalizedContext = context.trim();
+  if (!normalizedContext) return false;
+
+  return passageContent.includes(normalizedContext);
+}
+
+function resolveQuestionDisplay(question, passage, exercise) {
+  const prompt = question.prompt || null;
+  const rawContext = question.context || null;
+  const section = exercise?.section || null;
+  const context = isRedundantReadingContext(rawContext, passage?.content, section) ? null : rawContext;
+  const promptTrimmed = prompt?.trim() || '';
+  const contextTrimmed = context?.trim() || '';
+  const candidates = splitAnswerNoteCandidates(question.answer_note);
+
+  let target = null;
+  let highlightField = null;
+
+  for (const candidate of candidates) {
+    if (promptTrimmed === candidate && contextTrimmed.includes(candidate)) {
+      target = candidate;
+      highlightField = 'context';
+      break;
+    }
+  }
+
+  if (!target) {
+    for (const candidate of candidates) {
+      if (prompt?.includes(candidate)) {
+        target = candidate;
+        highlightField = 'prompt';
+        break;
+      }
+    }
+  }
+
+  if (!target) {
+    for (const candidate of candidates) {
+      if (context?.includes(candidate)) {
+        target = candidate;
+        highlightField = 'context';
+        break;
+      }
+    }
+  }
+
+  const shouldHidePrompt = Boolean(
+    target &&
+    highlightField === 'context' &&
+    promptTrimmed === target &&
+    context?.includes(target)
+  );
+
+  const displayPrompt = shouldHidePrompt ? null : prompt;
+  const promptTarget = displayPrompt && highlightField === 'prompt' ? target : null;
+  const contextTarget = context && highlightField === 'context' ? target : null;
+
+  return {
+    prompt: displayPrompt,
+    context,
+    promptTarget,
+    contextTarget,
+    promptParts: buildTextParts(displayPrompt, promptTarget),
+    contextParts: buildTextParts(context, contextTarget),
+  };
+}
+
+function sanitizeQuestion(question, optionsByQuestion, assetsByQuestion, passagesById, assetsByPassage, exerciseMap) {
   const passage = question.passage_id ? passagesById.get(question.passage_id) : null;
+  const exercise = question.exercise_id ? exerciseMap?.get(question.exercise_id) : null;
+  const display = resolveQuestionDisplay(question, passage, exercise);
 
   return {
     id: question.id,
     exerciseId: question.exercise_id,
     passageId: question.passage_id,
     questionNumber: question.question_number,
-    prompt: question.prompt,
-    context: question.context,
+    prompt: display.prompt,
+    promptTarget: display.promptTarget,
+    promptParts: display.promptParts,
+    context: display.context,
+    contextTarget: display.contextTarget,
+    contextParts: display.contextParts,
     sourceGroupType: question.source_group_type,
     sourceGroupKey: question.source_group_key,
     options: optionsByQuestion.get(question.id) || [],
@@ -168,7 +283,7 @@ async function loadQuizByQuestionIds(questionIds) {
   const filter = inFilter(questionIds);
   const questions = await supabaseRequest(
     'quiz_questions',
-    `select=id,exercise_id,passage_id,question_number,prompt,context,source_group_type,source_group_key&order=question_number.asc&id=${filter}&limit=1000`
+    `select=id,exercise_id,passage_id,question_number,prompt,context,answer_note,source_group_type,source_group_key&order=question_number.asc&id=${filter}&limit=1000`
   );
 
   const orderedQuestions = questionIds
@@ -210,7 +325,7 @@ async function loadQuizByQuestionIds(questionIds) {
 
   return {
     questions: orderedQuestions.map((question) =>
-      sanitizeQuestion(question, optionsByQuestion, assetsByQuestion, passagesById, assetsByPassage)
+      sanitizeQuestion(question, optionsByQuestion, assetsByQuestion, passagesById, assetsByPassage, exerciseMap)
     ),
     exerciseMap,
   };
