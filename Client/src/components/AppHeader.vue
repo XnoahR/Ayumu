@@ -8,10 +8,9 @@ const authStore = useAuthStore()
 const { isDark, toggleTheme } = useTheme()
 
 const navItems = [
-  { label: 'Beranda', to: '/' },
-  { label: 'Kartu Anki', to: '/anki' },
-  { label: 'Peringkat', to: '/leaderboard' },
-  { label: 'Profil', to: '/profile' },
+  { label: 'Profile', to: '/profile' },
+  { label: 'Flashcard', to: '/flashcard' },
+  { label: 'Leaderboard', to: '/leaderboard' },
 ]
 
 async function signOut() {
@@ -26,39 +25,35 @@ function isActive(path) {
 </script>
 
 <template>
-  <header class="sticky top-0 z-20 border-b border-gray-200/80 dark:border-gray-700 bg-white/90 dark:bg-gray-900/95 backdrop-blur">
-    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
-      <div class="flex items-center gap-4 min-w-0">
-        <router-link to="/" class="text-sm font-black tracking-[0.18em] uppercase text-gray-900 dark:text-white shrink-0">
-          Ayumu
+  <header class="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95">
+    <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3.5 sm:px-6">
+      <div class="flex min-w-0 items-center gap-4">
+        <router-link
+          to="/"
+          class="shrink-0 rounded-full px-2.5 py-1.5 text-sm font-black tracking-normal text-slate-950 transition-colors hover:bg-slate-100 dark:text-white dark:hover:bg-slate-900"
+          :class="isActive('/') ? 'bg-slate-100 dark:bg-slate-900' : ''"
+        >
+          AYUMU <span class="font-semibold text-slate-500 dark:text-slate-400">(Beranda)</span>
         </router-link>
-        <nav class="hidden md:flex items-center gap-1">
+        <nav class="hidden items-center gap-1.5 md:flex">
           <router-link
             v-for="item in navItems"
             :key="item.to"
             :to="item.to"
-            class="px-3 py-1.5 rounded-full border border-transparent text-[11px] font-black uppercase tracking-[0.14em] transition-colors"
+            class="rounded-full border px-3.5 py-2 text-sm font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-sky-500/30"
             :class="isActive(item.to)
-              ? 'bg-gray-900 text-white ayumu-nav-active'
-              : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-800 dark:hover:border-gray-700'"
+              ? 'border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-900 dark:bg-sky-950/50 dark:text-sky-200'
+              : 'border-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-white'"
           >
             {{ item.label }}
           </router-link>
-          <a
-            href="https://discord.gg/TH83fs3H38"
-            target="_blank"
-            rel="noreferrer"
-            class="px-3 py-1.5 rounded-full border border-transparent text-[11px] font-black uppercase tracking-[0.14em] text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-800 dark:hover:border-gray-700 transition-colors"
-          >
-            PhiliaSpace
-          </a>
         </nav>
       </div>
 
-      <div class="flex items-center gap-2 sm:gap-3 shrink-0">
+      <div class="flex shrink-0 items-center gap-2 sm:gap-3">
         <button
           @click="toggleTheme"
-          class="w-9 h-9 rounded-full border border-gray-200 dark:border-gray-700 dark:bg-gray-800 text-gray-500 hover:text-gray-900 hover:border-gray-300 dark:text-gray-300 dark:hover:text-white dark:hover:border-gray-600 transition-colors flex items-center justify-center"
+          class="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-500 transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-slate-950 focus:outline-none focus:ring-2 focus:ring-sky-500/30 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:bg-slate-800 dark:hover:text-white"
           :title="isDark ? 'Mode terang' : 'Mode gelap'"
         >
           <svg v-if="isDark" class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
@@ -70,13 +65,13 @@ function isActive(path) {
         </button>
 
         <template v-if="authStore.isAuthenticated">
-          <router-link to="/profile" class="hidden sm:flex items-center gap-2 hover:opacity-85 transition-opacity">
-            <img v-if="authStore.discordAvatar" :src="authStore.discordAvatar" class="w-8 h-8 rounded-full" />
-            <span class="text-xs font-bold text-gray-600 dark:text-gray-300 truncate max-w-[140px]">{{ authStore.discordUsername }}</span>
+          <router-link to="/profile" class="hidden items-center gap-2 transition-opacity hover:opacity-85 sm:flex">
+            <img v-if="authStore.discordAvatar" :src="authStore.discordAvatar" class="h-8 w-8 rounded-full ring-1 ring-slate-200 dark:ring-slate-700" />
+            <span class="max-w-[140px] truncate text-xs font-bold text-slate-600 dark:text-slate-300">{{ authStore.discordUsername }}</span>
           </router-link>
           <button
             @click="signOut"
-            class="px-3 py-2 rounded-full bg-rose-50 text-rose-600 hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-300 dark:hover:bg-rose-950/60 text-[11px] font-black uppercase tracking-[0.14em] transition-colors"
+            class="rounded-full bg-rose-50 px-3.5 py-2 text-xs font-bold text-rose-600 transition-colors hover:bg-rose-100 focus:outline-none focus:ring-2 focus:ring-rose-500/25 dark:bg-rose-950/40 dark:text-rose-300 dark:hover:bg-rose-950/60"
           >
             Keluar
           </button>
@@ -84,7 +79,7 @@ function isActive(path) {
         <template v-else>
           <button
             @click="authStore.signInWithDiscord().catch(() => {})"
-            class="px-3 py-2 rounded-full bg-[#5865F2] hover:bg-[#4752C4] text-white text-[11px] font-black uppercase tracking-[0.14em] transition-colors"
+            class="rounded-full bg-slate-950 px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500/30 dark:bg-sky-500 dark:text-slate-950 dark:hover:bg-sky-400"
           >
             Masuk
           </button>
@@ -92,26 +87,18 @@ function isActive(path) {
       </div>
     </div>
 
-    <div class="md:hidden px-4 sm:px-6 pb-3 flex items-center gap-2 overflow-auto no-scrollbar">
+    <div class="no-scrollbar flex items-center gap-2 overflow-auto px-4 pb-3 sm:px-6 md:hidden">
       <router-link
         v-for="item in navItems"
         :key="item.to"
         :to="item.to"
-        class="px-3 py-1.5 rounded-full whitespace-nowrap border border-transparent text-[11px] font-black uppercase tracking-[0.14em] transition-colors"
+        class="whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-sky-500/30"
         :class="isActive(item.to)
-          ? 'bg-gray-900 text-white ayumu-nav-active'
-          : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700'"
+          ? 'border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-900 dark:bg-sky-950/50 dark:text-sky-200'
+          : 'border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'"
       >
         {{ item.label }}
       </router-link>
-      <a
-        href="https://discord.gg/TH83fs3H38"
-        target="_blank"
-        rel="noreferrer"
-        class="px-3 py-1.5 rounded-full whitespace-nowrap border border-gray-200 bg-gray-100 text-gray-600 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 text-[11px] font-black uppercase tracking-[0.14em]"
-      >
-        PhiliaSpace
-      </a>
     </div>
   </header>
 </template>
