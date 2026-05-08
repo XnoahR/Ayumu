@@ -153,6 +153,8 @@ Client/dist/
 Client/.vite/
 Server/tmp/
 Server/temp/
+anki-addon/__pycache__/
+anki-addon/**/__pycache__/
 
 # Deploy scripts (contain credentials)
 Server/deploy_ayumu.py

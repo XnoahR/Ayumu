@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import LandingPage from '../views/LandingPage.vue'
+import AnkiPage from '../views/AnkiPage.vue'
 import ExamPage from '../views/ExamPage.vue'
 import ResultsPage from '../views/ResultsPage.vue'
 import ProfilePage from '../views/ProfilePage.vue'
@@ -12,6 +13,11 @@ const router = createRouter({
       path: '/',
       name: 'home',
       component: LandingPage
+    },
+    {
+      path: '/anki',
+      name: 'anki',
+      component: AnkiPage
     },
     {
       path: '/exam/:sessionCode',

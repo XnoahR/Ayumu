@@ -70,7 +70,7 @@ function clearTimer() {
 
 onMounted(async () => {
   if (!props.sessionCode) {
-    showToast('No session code provided')
+    showToast('Kode sesi tidak ditemukan')
     router.push({ name: 'home' })
     return
   }
@@ -81,7 +81,7 @@ onMounted(async () => {
     await sessionStore.loadSession(props.sessionCode)
     startTimer()
   } catch (error) {
-    showToast('Session not found or expired')
+    showToast('Sesi tidak ditemukan atau sudah kedaluwarsa')
     router.push({ name: 'home' })
   }
 })
@@ -92,9 +92,9 @@ onUnmounted(() => {
 
 const submitExam = async () => {
   const unanswered = sessionStore.totalQuestions - sessionStore.answeredCount
-  let msg = 'Are you sure you want to finish the assessment?'
+  let msg = 'Yakin ingin menyelesaikan ujian ini?'
   if (unanswered > 0) {
-    msg = `You have ${unanswered} unanswered question${unanswered > 1 ? 's' : ''}. Are you sure you want to finish?`
+    msg = `Masih ada ${unanswered} soal yang belum dijawab. Yakin ingin menyelesaikannya?`
   }
   if (!(await showConfirm(msg))) return
 
@@ -105,7 +105,7 @@ const submitExam = async () => {
     clearTimer()
     router.push({ name: 'results', params: { sessionCode: props.sessionCode } })
   } catch (error) {
-    showToast('Failed to submit assessment: ' + error.message)
+    showToast('Gagal mengirim hasil ujian: ' + error.message)
     console.error('Submit error:', error)
   } finally {
     isSubmitting.value = false
@@ -113,7 +113,7 @@ const submitExam = async () => {
 }
 
 const quitSession = async () => {
-  if (!(await showConfirm('Exit assessment? Progress will not be saved.'))) return
+  if (!(await showConfirm('Keluar dari ujian? Progres tidak akan disimpan.'))) return
   stopTimer()
   clearTimer()
   sessionStore.reset()
@@ -127,15 +127,15 @@ const examTitle = computed(() => {
 
 const currentSectionLabel = computed(() => {
   const q = sessionStore.currentQuestion
-  if (!q) return 'ASSESSMENT'
+  if (!q) return 'UJIAN'
   let section = (q.section || '').toLowerCase()
   if (section === 'vocabulary' || section === 'vocab' || section === 'kanji') section = 'grammar'
   const map = {
-    grammar: 'LANGUAGE KNOWLEDGE ASSESSMENT',
-    reading: 'READING ASSESSMENT',
-    listening: 'LISTENING ASSESSMENT',
+    grammar: 'UJIAN PENGETAHUAN BAHASA',
+    reading: 'UJIAN MEMBACA',
+    listening: 'UJIAN MENYIMAK',
   }
-  return map[section] || 'ASSESSMENT'
+  return map[section] || 'UJIAN'
 })
 
 const questionProgress = computed(() => {
@@ -150,7 +150,7 @@ const questionProgress = computed(() => {
     <header class="h-12 flex items-center justify-between px-3 sm:px-4 bg-white dark:bg-gray-800 border-b border-gray-300 dark:border-gray-700 shrink-0 z-20">
       <div class="flex items-center gap-2 sm:gap-4">
         <span class="text-sm font-black text-gray-900 dark:text-white tracking-tight">AYUMU.</span>
-        <button @click="toggleTheme" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors cursor-pointer" :title="isDark ? 'Light mode' : 'Dark mode'">
+        <button @click="toggleTheme" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors cursor-pointer" :title="isDark ? 'Mode terang' : 'Mode gelap'">
           <svg v-if="isDark" class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
             <path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41L5.99 4.58zm12.37 12.37c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0 .39-.39.39-1.03 0-1.41l-1.06-1.06zm1.06-10.96c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06zM7.05 18.36c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06z"/>
           </svg>
@@ -173,14 +173,14 @@ const questionProgress = computed(() => {
           {{ formattedTime }}
         </span>
         <button @click="quitSession" class="text-[10px] sm:text-xs font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 px-2 sm:px-3 py-1 sm:py-1.5 rounded border border-red-200 dark:border-red-800 transition-colors cursor-pointer">
-          EXIT
+          KELUAR
         </button>
       </div>
     </header>
 
     <div class="h-10 hidden sm:flex items-center px-4 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shrink-0">
       <div>
-        <p class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Active Assessment</p>
+        <p class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Ujian Aktif</p>
         <p class="text-xs font-bold text-gray-700 dark:text-gray-300">{{ examTitle }}</p>
       </div>
     </div>
@@ -204,18 +204,18 @@ const questionProgress = computed(() => {
           <button @click="sessionStore.prevQuestion()" :disabled="sessionStore.currentIndex === 0"
             class="px-4 sm:px-6 py-2 text-xs font-bold text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
           >
-            Previous
+            Sebelumnya
           </button>
           <div class="flex gap-2 sm:gap-3">
             <button v-if="sessionStore.currentIndex < sessionStore.totalQuestions - 1" @click="sessionStore.nextQuestion()"
               class="px-6 sm:px-8 py-2 bg-gray-800 dark:bg-gray-200 text-white dark:text-gray-900 text-xs font-bold rounded hover:bg-gray-700 dark:hover:bg-gray-300 transition-colors cursor-pointer"
             >
-              Next
+              Berikutnya
             </button>
             <button v-else @click="submitExam" :disabled="isSubmitting"
               class="px-6 sm:px-8 py-2 bg-gray-800 dark:bg-gray-200 text-white dark:text-gray-900 text-xs font-bold rounded hover:bg-gray-700 dark:hover:bg-gray-300 transition-colors disabled:opacity-50 cursor-pointer"
             >
-              {{ isSubmitting ? 'Submitting...' : 'Finish' }}
+              {{ isSubmitting ? 'Mengirim...' : 'Selesai' }}
             </button>
           </div>
         </div>
@@ -232,7 +232,7 @@ const questionProgress = computed(() => {
           <div class="absolute inset-0 bg-black/50" @click="showMapOverlay = false"></div>
           <div class="absolute right-0 top-0 bottom-0 w-80 max-w-[85vw] bg-white dark:bg-gray-800 p-4 flex flex-col overflow-y-auto shadow-xl">
             <div class="flex items-center justify-between mb-4">
-              <h3 class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">Navigator</h3>
+              <h3 class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">Navigasi</h3>
               <button @click="showMapOverlay = false" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer">
                 <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -247,9 +247,9 @@ const questionProgress = computed(() => {
 
     <div v-else class="flex-1 flex items-center justify-center">
       <div class="text-center">
-        <p class="text-gray-500 dark:text-gray-400 text-sm font-medium">No questions loaded</p>
+        <p class="text-gray-500 dark:text-gray-400 text-sm font-medium">Soal belum dimuat</p>
         <button @click="router.push({ name: 'home' })" class="mt-3 px-4 py-2 text-xs font-bold text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer">
-          Return Home
+          Kembali ke Beranda
         </button>
       </div>
     </div>
@@ -263,11 +263,11 @@ const questionProgress = computed(() => {
         <div class="flex justify-end gap-3">
           <button @click="confirmDialog.resolve(false); confirmDialog.show = false"
             class="px-4 py-2 text-xs font-bold text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer">
-            Cancel
+            Batal
           </button>
           <button @click="confirmDialog.resolve(true); confirmDialog.show = false"
             class="px-4 py-2 text-xs font-bold text-white bg-gray-800 dark:bg-gray-200 dark:text-gray-900 rounded hover:bg-gray-700 dark:hover:bg-gray-300 transition-colors cursor-pointer">
-            Confirm
+            Konfirmasi
           </button>
         </div>
       </div>

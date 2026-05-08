@@ -19,11 +19,24 @@
 :root {
   background-color: #f0f2f5;
   color: #1f2937;
+  --ayumu-dark-nav: #101828;
+  --ayumu-dark-accent: #727ae9;
+  --ayumu-dark-note: #180c2c;
+  --ayumu-dark-button: #4f46e5;
+  --ayumu-dark-body: #0a0a0a;
+  --ayumu-dark-highlight: #16142f;
+  --ayumu-dark-card: #141921;
+  --ayumu-dark-card-border: #354052;
 }
 
 :root.dark {
-  background-color: #111827;
+  background-color: var(--ayumu-dark-body);
   color: #f3f4f6;
+  color-scheme: dark;
+  --color-gray-700: #2a2545;
+  --color-gray-800: var(--ayumu-dark-highlight);
+  --color-gray-900: var(--ayumu-dark-nav);
+  --color-gray-950: var(--ayumu-dark-body);
 }
 
 [lang="ja"], .text-2xl, .text-3xl, .text-4xl, .text-5xl {
@@ -37,4 +50,93 @@
 ::selection {
   background: #d1d5db;
   color: inherit;
+}
+
+.dark ::selection {
+  background: var(--ayumu-dark-accent);
+  color: #ffffff;
+}
+
+@layer components {
+  .ayumu-primary {
+    @apply transition-colors;
+  }
+
+  .dark .ayumu-primary {
+    background-color: var(--ayumu-dark-button) !important;
+    color: #ffffff !important;
+  }
+
+  .dark .ayumu-primary:hover {
+    background-color: #6366f1 !important;
+  }
+
+  .dark .ayumu-page {
+    background-color: var(--ayumu-dark-body) !important;
+    color: #f3f4f6 !important;
+  }
+
+  .dark .ayumu-panel {
+    background-color: var(--ayumu-dark-card) !important;
+    border-color: var(--ayumu-dark-card-border) !important;
+  }
+
+  .dark .ayumu-panel-muted {
+    background-color: var(--ayumu-dark-nav) !important;
+    border-color: #24324b !important;
+  }
+
+  .dark .ayumu-nav-active {
+    background-color: var(--ayumu-dark-highlight) !important;
+    color: var(--ayumu-dark-accent) !important;
+    border-color: #2d2c58 !important;
+  }
+
+  .dark .ayumu-accent-text {
+    color: var(--ayumu-dark-accent) !important;
+  }
+
+  .dark .ayumu-soft-copy {
+    color: #aeb6ca !important;
+  }
+
+  .dark .ayumu-soft-copy strong,
+  .dark .ayumu-soft-copy b {
+    color: #ffffff !important;
+  }
+
+  .dark .ayumu-secondary-button {
+    background-color: var(--ayumu-dark-card) !important;
+    border-color: var(--ayumu-dark-card-border) !important;
+    color: #eef2ff !important;
+  }
+
+  .dark .ayumu-secondary-button:hover {
+    background-color: #1d1b3d !important;
+  }
+
+  .dark .ayumu-chip-active {
+    background-color: var(--ayumu-dark-highlight) !important;
+    color: var(--ayumu-dark-accent) !important;
+    border-color: #3a3e78 !important;
+  }
+
+  .dark .ayumu-note-surface {
+    background-color: var(--ayumu-dark-note) !important;
+    border-color: #2d1d4a !important;
+  }
+
+  .dark .ayumu-card-surface {
+    background-color: var(--ayumu-dark-card) !important;
+    border-color: var(--ayumu-dark-card-border) !important;
+  }
+
+  .dark .ayumu-card-surface:hover {
+    background-color: #18202a !important;
+  }
+
+  .dark .ayumu-highlight-surface {
+    background-color: var(--ayumu-dark-highlight) !important;
+    border-color: #2d2c58 !important;
+  }
 }
