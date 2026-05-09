@@ -27,7 +27,7 @@ async function requestJson(baseUrl, path, options = {}) {
       : { message: await response.text() }
 
     if (!response.ok) {
-      const error = new Error(payload.message || `Bridge request failed (${response.status})`)
+      const error = new Error(payload.message || `Permintaan bridge gagal (${response.status})`)
       error.status = response.status
       error.payload = payload
       error.baseUrl = baseUrl
@@ -37,7 +37,7 @@ async function requestJson(baseUrl, path, options = {}) {
     return payload
   } catch (error) {
     if (error.name === 'AbortError') {
-      const timeoutError = new Error('Timed out while contacting the local bridge.')
+      const timeoutError = new Error('Waktu habis saat menghubungi bridge lokal.')
       timeoutError.code = 'TIMEOUT'
       timeoutError.baseUrl = baseUrl
       throw timeoutError
@@ -50,6 +50,13 @@ async function requestJson(baseUrl, path, options = {}) {
     throw error
   } finally {
     window.clearTimeout(timeoutId)
+  }
+}
+
+function bridgeHeaders(sessionToken, headers = {}) {
+  return {
+    'X-Ayumu-Bridge-Session': sessionToken,
+    ...headers,
   }
 }
 
@@ -82,7 +89,7 @@ export async function discoverBridge() {
     throw lastError
   }
 
-  const error = new Error('Bridge unavailable.')
+  const error = new Error('Bridge tidak tersedia.')
   error.code = 'NETWORK'
   throw error
 }
@@ -98,9 +105,7 @@ export async function createBridgeSession(baseUrl) {
 }
 
 export async function loadBridgeSnapshot(baseUrl, sessionToken) {
-  const headers = {
-    'X-Ayumu-Bridge-Session': sessionToken,
-  }
+  const headers = bridgeHeaders(sessionToken)
 
   const [decksResponse, modelsResponse] = await Promise.all([
     requestJson(baseUrl, '/decks', { headers, timeoutMs: 5000 }),
@@ -113,26 +118,50 @@ export async function loadBridgeSnapshot(baseUrl, sessionToken) {
   }
 }
 
+export async function loadModelFields(baseUrl, sessionToken, modelId) {
+  const headers = bridgeHeaders(sessionToken)
+  const response = await requestJson(baseUrl, `/models/${modelId}/fields`, { headers, timeoutMs: 5000 })
+  return response.fields || []
+}
+
+export async function startBridgeReview(baseUrl, sessionToken, deckId) {
+  const headers = bridgeHeaders(sessionToken)
+  return requestJson(baseUrl, `/decks/${deckId}/cards`, { headers, timeoutMs: 8000 })
+}
+
+export async function submitBridgeReview(baseUrl, sessionToken, payload) {
+  const headers = bridgeHeaders(sessionToken, {
+    'Content-Type': 'application/json',
+  })
+
+  return requestJson(baseUrl, '/review', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(payload),
+    timeoutMs: 8000,
+  })
+}
+
 export function classifyBridgeError(error) {
   if (error?.code === 'BLOCKED' || error?.status === 403) {
     return {
       status: 'blocked',
-      message: 'Ayumu is reaching the bridge, but this browser origin is not allowed by the add-on.',
+      message: 'Ayumu bisa menjangkau bridge, tapi origin browser ini tidak diizinkan oleh add-on.',
     }
   }
 
   if (error?.status === 503) {
     return {
       status: 'reachable',
-      message: error.payload?.message || 'The bridge is running, but no Anki collection is open yet.',
+      message: error.payload?.message || 'Bridge aktif, tapi belum ada koleksi Anki yang dibuka.',
     }
   }
 
   return {
     status: hasSeenBridge() ? 'not-running' : 'not-installed',
     message: hasSeenBridge()
-      ? 'The Ayumu bridge is not responding. Make sure Anki is open.'
-      : 'No Ayumu bridge was found on this machine yet. Install the Anki add-on and restart Anki.',
+      ? 'Bridge Ayumu tidak merespons. Pastikan Anki sedang terbuka.'
+      : 'Bridge Ayumu belum ditemukan di mesin ini. Pasang add-on Anki lalu mulai ulang Anki.',
   }
 }
 

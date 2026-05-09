@@ -375,6 +375,10 @@ app.get('/api', (req, res) => {
         'GET /api/leaderboard',
         'GET /api/leaderboard/:userId/rank',
       ],
+      anki: [
+        'GET /api/anki/preferences',
+        'PUT /api/anki/preferences',
+      ],
     },
   });
 });
@@ -770,10 +774,12 @@ app.get('/api/packages/:id/quiz', async (req, res, next) => {
 const { resolveUser } = require('./middleware/auth');
 const sessionRoutes = require('./routes/sessions');
 const profileRoutes = require('./routes/profile');
+const ankiRoutes = require('./routes/anki');
 
 // Apply user resolution to session and profile routes
 app.use('/api/sessions', resolveUser, sessionRoutes);
 app.use('/api', resolveUser, profileRoutes);
+app.use('/api/anki', resolveUser, ankiRoutes);
 
 // Serve built frontend in production
 const clientPath = path.join(__dirname, 'public');

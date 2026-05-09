@@ -8,9 +8,9 @@ const authStore = useAuthStore()
 const { isDark, toggleTheme } = useTheme()
 
 const navItems = [
-  { label: 'Profile', to: '/profile' },
-  { label: 'Flashcard', to: '/flashcard' },
-  { label: 'Leaderboard', to: '/leaderboard' },
+  { label: 'Profil', to: '/profile' },
+  { label: 'Anki', to: '/anki' },
+  { label: 'Peringkat', to: '/leaderboard' },
 ]
 
 async function signOut() {

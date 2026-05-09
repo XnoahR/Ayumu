@@ -1,6 +1,12 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import LandingPage from '../views/LandingPage.vue'
 import AnkiPage from '../views/AnkiPage.vue'
+import AnkiDecksPage from '../views/anki/AnkiDecksPage.vue'
+import AnkiReviewPage from '../views/anki/AnkiReviewPage.vue'
+import AnkiPluginsPage from '../views/anki/AnkiPluginsPage.vue'
+import AnkiDesignPage from '../views/anki/AnkiDesignPage.vue'
+import AnkiSettingsPage from '../views/anki/AnkiSettingsPage.vue'
+import AnkiAccountPage from '../views/anki/AnkiAccountPage.vue'
 import ExamPage from '../views/ExamPage.vue'
 import ResultsPage from '../views/ResultsPage.vue'
 import ProfilePage from '../views/ProfilePage.vue'
@@ -18,7 +24,43 @@ const router = createRouter({
     {
       path: '/anki',
       name: 'anki',
-      component: AnkiPage
+      component: AnkiPage,
+      children: [
+        {
+          path: '',
+          redirect: '/anki/decks',
+        },
+        {
+          path: 'decks',
+          name: 'anki-decks',
+          component: AnkiDecksPage,
+        },
+        {
+          path: 'review',
+          name: 'anki-review',
+          component: AnkiReviewPage,
+        },
+        {
+          path: 'plugins',
+          name: 'anki-plugins',
+          component: AnkiPluginsPage,
+        },
+        {
+          path: 'design',
+          name: 'anki-design',
+          component: AnkiDesignPage,
+        },
+        {
+          path: 'settings',
+          name: 'anki-settings',
+          component: AnkiSettingsPage,
+        },
+        {
+          path: 'account',
+          name: 'anki-account',
+          component: AnkiAccountPage,
+        },
+      ],
     },
     {
       path: '/exam/:sessionCode',
@@ -45,11 +87,7 @@ const router = createRouter({
     {
       path: '/flashcard',
       name: 'flashcard',
-      component: ComingSoonPage,
-      props: {
-        title: 'Flashcard',
-        description: 'Flashcards are warming up. Soon this space will help you review small pieces before a full practice run.',
-      }
+      redirect: '/anki'
     },
     {
       path: '/kanji',

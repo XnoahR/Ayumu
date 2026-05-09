@@ -9,7 +9,7 @@ import {
 } from '../lib/ankiBridge.js'
 
 const status = ref('checking')
-const statusMessage = ref('Looking for a local Anki bridge...')
+const statusMessage = ref('Mencari bridge Anki lokal...')
 const bridgeHealth = ref(null)
 const decks = ref([])
 const models = ref([])
@@ -35,7 +35,7 @@ const sessionExpiryLabel = computed(() => formatBridgeTime(sessionExpiresAt.valu
 async function refreshBridge() {
   isConnecting.value = true
   status.value = 'checking'
-  statusMessage.value = 'Checking localhost bridge...'
+  statusMessage.value = 'Memeriksa bridge localhost...'
 
   try {
     const discovery = await discoverBridge()
@@ -43,7 +43,7 @@ async function refreshBridge() {
 
     if (!discovery.health.profile_loaded) {
       status.value = 'reachable'
-      statusMessage.value = 'The bridge is running, but Anki does not have a collection open yet.'
+      statusMessage.value = 'Bridge aktif, tapi koleksi Anki belum dibuka.'
       decks.value = []
       models.value = []
       sessionExpiresAt.value = null
@@ -57,7 +57,7 @@ async function refreshBridge() {
     models.value = snapshot.models
     lastUpdatedAt.value = new Date().toLocaleTimeString()
     status.value = 'reachable'
-    statusMessage.value = `Connected to ${discovery.health.profile_name || 'the current Anki profile'}.`
+    statusMessage.value = `Terhubung ke ${discovery.health.profile_name || 'profil Anki saat ini'}.`
   } catch (error) {
     const classification = classifyBridgeError(error)
     status.value = classification.status
@@ -79,7 +79,7 @@ onMounted(() => {
   <section class="rounded-[14px] border border-gray-300 ayumu-panel bg-white dark:bg-gray-800 overflow-hidden">
     <div class="border-b border-gray-300 dark:border-gray-700 bg-[#efefef] dark:bg-gray-900 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
       <div class="min-w-0">
-        <h2 class="text-sm font-bold text-gray-800 dark:text-gray-100">Decks</h2>
+        <h2 class="text-sm font-bold text-gray-800 dark:text-gray-100">Dek</h2>
         <p class="text-xs mt-0.5" :class="statusTone">{{ statusMessage }}</p>
       </div>
       <div class="flex gap-2">
@@ -88,7 +88,7 @@ onMounted(() => {
           :disabled="isConnecting"
           class="ayumu-secondary-button px-3 py-2 rounded-md border border-gray-300 bg-white text-[11px] font-black uppercase tracking-[0.14em] text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-60"
         >
-          {{ isConnecting ? 'Refreshing...' : 'Refresh' }}
+          {{ isConnecting ? 'Memuat ulang...' : 'Muat ulang' }}
         </button>
       </div>
     </div>
@@ -96,50 +96,50 @@ onMounted(() => {
     <div class="border-b border-gray-300 ayumu-note-surface bg-[#f7f7f7] px-4 py-3 grid grid-cols-2 md:grid-cols-6 gap-3 text-center">
       <div>
         <p class="text-lg font-black text-gray-900 dark:text-white">{{ topLevelDecks.length }}</p>
-        <p class="text-[10px] font-black uppercase tracking-[0.14em] text-gray-500 ayumu-accent-text">Decks</p>
+        <p class="text-[10px] font-black uppercase tracking-[0.14em] text-gray-500 ayumu-accent-text">Dek</p>
       </div>
       <div>
         <p class="text-lg font-black text-gray-900 dark:text-white">{{ totalCards }}</p>
-        <p class="text-[10px] font-black uppercase tracking-[0.14em] text-gray-500 ayumu-accent-text">Cards</p>
+        <p class="text-[10px] font-black uppercase tracking-[0.14em] text-gray-500 ayumu-accent-text">Kartu</p>
       </div>
       <div>
         <p class="text-lg font-black text-gray-900 dark:text-white">{{ newToday }}</p>
-        <p class="text-[10px] font-black uppercase tracking-[0.14em] text-gray-500 ayumu-accent-text">New</p>
+        <p class="text-[10px] font-black uppercase tracking-[0.14em] text-gray-500 ayumu-accent-text">Baru</p>
       </div>
       <div>
         <p class="text-lg font-black text-gray-900 dark:text-white">{{ learnToday }}</p>
-        <p class="text-[10px] font-black uppercase tracking-[0.14em] text-gray-500 ayumu-accent-text">Learn</p>
+        <p class="text-[10px] font-black uppercase tracking-[0.14em] text-gray-500 ayumu-accent-text">Belajar</p>
       </div>
       <div>
         <p class="text-lg font-black text-gray-900 dark:text-white">{{ dueToday }}</p>
-        <p class="text-[10px] font-black uppercase tracking-[0.14em] text-gray-500 ayumu-accent-text">Due</p>
+        <p class="text-[10px] font-black uppercase tracking-[0.14em] text-gray-500 ayumu-accent-text">Jatuh Tempo</p>
       </div>
       <div>
         <p class="text-lg font-black text-gray-900 dark:text-white">{{ models.length }}</p>
-        <p class="text-[10px] font-black uppercase tracking-[0.14em] text-gray-500 ayumu-accent-text">Models</p>
+        <p class="text-[10px] font-black uppercase tracking-[0.14em] text-gray-500 ayumu-accent-text">Model</p>
       </div>
     </div>
 
     <div v-if="bridgeHealth?.anki_version || sessionExpiryLabel || lastUpdatedAt" class="px-4 py-2 border-b border-gray-300 dark:border-gray-700 bg-[#fafafa] dark:bg-gray-900 text-[11px] text-gray-500 dark:text-gray-400 flex flex-wrap gap-x-4 gap-y-1">
       <span v-if="bridgeHealth?.anki_version">Anki {{ bridgeHealth.anki_version }}</span>
-      <span v-if="bridgeHealth?.profile_name">Profile {{ bridgeHealth.profile_name }}</span>
-      <span v-if="sessionExpiryLabel">Session {{ sessionExpiryLabel }}</span>
-      <span v-if="lastUpdatedAt">Updated {{ lastUpdatedAt }}</span>
+      <span v-if="bridgeHealth?.profile_name">Profil {{ bridgeHealth.profile_name }}</span>
+      <span v-if="sessionExpiryLabel">Sesi {{ sessionExpiryLabel }}</span>
+      <span v-if="lastUpdatedAt">Diperbarui {{ lastUpdatedAt }}</span>
     </div>
 
     <div v-if="status === 'reachable' && bridgeHealth?.profile_loaded !== false" class="grid lg:grid-cols-[minmax(0,1fr)_280px]">
       <div class="min-w-0">
         <div class="grid grid-cols-[minmax(0,1fr)_72px_72px_72px_72px_72px] gap-2 px-4 py-2 border-b border-gray-300 dark:border-gray-700 bg-[#f5f5f5] dark:bg-gray-900 text-[10px] font-black uppercase tracking-[0.14em] text-gray-500 ayumu-accent-text">
-          <div>Deck</div>
-          <div class="text-right">Cards</div>
-          <div class="text-right">New</div>
-          <div class="text-right">Learn</div>
-          <div class="text-right">Due</div>
-          <div class="text-right">Paused</div>
+          <div>Dek</div>
+          <div class="text-right">Kartu</div>
+          <div class="text-right">Baru</div>
+          <div class="text-right">Belajar</div>
+          <div class="text-right">Jatuh Tempo</div>
+          <div class="text-right">Ditunda</div>
         </div>
 
         <div v-if="decks.length === 0" class="ayumu-soft-copy px-4 py-8 text-sm text-gray-500 dark:text-gray-400">
-          No deck metadata returned yet.
+          Metadata dek belum tersedia.
         </div>
 
         <div v-else class="divide-y divide-gray-200 dark:divide-gray-700">
@@ -167,10 +167,10 @@ onMounted(() => {
 
       <aside class="border-t lg:border-t-0 lg:border-l border-gray-300 dark:border-gray-700 bg-[#fafafa] dark:bg-gray-900">
         <div class="px-4 py-3 border-b border-gray-300 dark:border-gray-700">
-          <h3 class="text-sm font-bold text-gray-800 dark:text-gray-100">Note Models</h3>
+          <h3 class="text-sm font-bold text-gray-800 dark:text-gray-100">Model Catatan</h3>
         </div>
         <div v-if="models.length === 0" class="ayumu-soft-copy px-4 py-6 text-sm text-gray-500 dark:text-gray-400">
-          No note models returned yet.
+          Belum ada model catatan.
         </div>
         <div v-else class="divide-y divide-gray-200 dark:divide-gray-700">
           <div
@@ -186,7 +186,7 @@ onMounted(() => {
     </div>
 
     <div v-else class="ayumu-soft-copy px-4 py-8 text-sm text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-900">
-      This bridge reads live desktop Anki data only. Open Anki and a collection, then refresh.
+      Bridge ini hanya membaca data Anki desktop secara langsung. Buka Anki dan koleksinya, lalu muat ulang.
     </div>
   </section>
 </template>

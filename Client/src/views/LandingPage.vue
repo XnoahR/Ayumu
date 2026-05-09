@@ -25,9 +25,9 @@ const quickActions = [
     to: '/profile',
   },
   {
-    title: 'Flashcard',
-    description: 'Flashcard sedang disiapkan untuk sesi ulasan cepat.',
-    to: '/flashcard',
+    title: 'Anki',
+    description: 'Mainkan kartu Anki lokalmu langsung dari web Ayumu.',
+    to: '/anki',
   },
   {
     title: 'Kanji',

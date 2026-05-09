@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useSessionStore } from '../store/session.js'
 
 const emit = defineEmits(['submit'])
@@ -7,9 +7,9 @@ const emit = defineEmits(['submit'])
 const sessionStore = useSessionStore()
 
 const sectionDisplayMap = {
-  grammar: 'LANGUAGE KNOWLEDGE / 文字・語彙・文法',
-  reading: 'READING / 読解',
-  listening: 'LISTENING / 聴解',
+  grammar: 'PENGETAHUAN BAHASA',
+  reading: 'MEMBACA',
+  listening: 'MENYIMAK',
 }
 
 const collapsedSections = ref(new Set())
@@ -32,7 +32,7 @@ const sections = computed(() => {
   if (entries.length === 0 && sessionStore.totalQuestions > 0) {
     return [{
       key: 'all',
-      label: 'ALL QUESTIONS',
+      label: 'SEMUA SOAL',
       total: sessionStore.totalQuestions,
       answered: sessionStore.answeredCount,
       flagged: sessionStore.flaggedCount,
@@ -59,16 +59,16 @@ const colorClasses = {
   flagged: 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-700',
   unanswered: 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600',
 }
-
 </script>
 
 <template>
   <div class="flex flex-col h-full">
-    <h3 class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-4">Question Navigator</h3>
+    <h3 class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-4">Navigasi Soal</h3>
 
     <div class="flex-1 overflow-y-auto space-y-2">
       <div v-for="section in sections" :key="section.key" class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-        <button @click.stop="toggleSection(section.key)"
+        <button
+          @click.stop="toggleSection(section.key)"
           class="w-full flex items-center justify-between px-3 py-2 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-750 transition-colors cursor-pointer"
         >
           <div class="flex items-center gap-2">
@@ -82,7 +82,9 @@ const colorClasses = {
 
         <div v-show="!isSectionCollapsed(section.key)" class="p-3">
           <div class="grid grid-cols-6 gap-1.5">
-            <button v-for="idx in section.indices" :key="'sec-'+idx"
+            <button
+              v-for="idx in section.indices"
+              :key="'sec-' + idx"
               @click.stop="sessionStore.goToQuestion(idx)"
               class="relative aspect-square rounded flex items-center justify-center text-xs font-medium border transition-all cursor-pointer"
               :class="colorClasses[getQuestionColor(idx)]"
@@ -99,11 +101,11 @@ const colorClasses = {
 
     <div class="space-y-2 mb-4">
       <div class="flex justify-between text-xs">
-        <span class="text-gray-500 dark:text-gray-400">Answered</span>
+        <span class="text-gray-500 dark:text-gray-400">Terjawab</span>
         <span class="font-bold text-gray-700 dark:text-gray-300">{{ sessionStore.answeredCount }} / {{ sessionStore.totalQuestions }}</span>
       </div>
       <div class="flex justify-between text-xs">
-        <span class="text-gray-500 dark:text-gray-400">Flagged</span>
+        <span class="text-gray-500 dark:text-gray-400">Ditandai</span>
         <span class="font-bold text-amber-600 dark:text-amber-400">{{ sessionStore.flaggedCount }}</span>
       </div>
       <div class="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
@@ -114,26 +116,27 @@ const colorClasses = {
     <div class="space-y-1.5 mb-4 text-xs">
       <div class="flex items-center gap-2">
         <span class="w-3 h-3 rounded bg-gray-800 dark:bg-gray-200 inline-block"></span>
-        <span class="text-gray-500 dark:text-gray-400">Current</span>
+        <span class="text-gray-500 dark:text-gray-400">Saat ini</span>
       </div>
       <div class="flex items-center gap-2">
         <span class="w-3 h-3 rounded bg-emerald-100 dark:bg-emerald-900/40 border border-emerald-300 dark:border-emerald-700 inline-block"></span>
-        <span class="text-gray-500 dark:text-gray-400">Answered</span>
+        <span class="text-gray-500 dark:text-gray-400">Terjawab</span>
       </div>
       <div class="flex items-center gap-2">
         <span class="w-3 h-3 rounded bg-amber-100 dark:bg-amber-900/40 border border-amber-300 dark:border-amber-700 inline-block"></span>
-        <span class="text-gray-500 dark:text-gray-400">Flagged</span>
+        <span class="text-gray-500 dark:text-gray-400">Ditandai</span>
       </div>
       <div class="flex items-center gap-2">
         <span class="w-3 h-3 rounded bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 inline-block"></span>
-        <span class="text-gray-500 dark:text-gray-400">Unanswered</span>
+        <span class="text-gray-500 dark:text-gray-400">Belum dijawab</span>
       </div>
     </div>
 
-    <button @click.stop="emit('submit')"
+    <button
+      @click.stop="emit('submit')"
       class="w-full py-3 bg-red-900 dark:bg-red-700 text-white font-bold rounded text-xs tracking-wider hover:bg-red-800 dark:hover:bg-red-600 transition-colors shadow-sm cursor-pointer"
     >
-      FINISH ASSESSMENT
+      SELESAIKAN UJIAN
     </button>
   </div>
 </template>

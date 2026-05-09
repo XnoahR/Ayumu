@@ -69,7 +69,7 @@ export const useSessionStore = defineStore('session', () => {
         body: JSON.stringify({ level, template_id: templateId }),
       })
 
-      if (!response.ok) throw new Error('Failed to create session')
+      if (!response.ok) throw new Error('Gagal membuat sesi')
 
       const data = await response.json()
       return data
@@ -89,7 +89,7 @@ export const useSessionStore = defineStore('session', () => {
         credentials: 'include',
       })
 
-      if (!response.ok) throw new Error('Session not found')
+      if (!response.ok) throw new Error('Sesi tidak ditemukan')
 
       const data = await response.json()
       sessionCode.value = code
@@ -129,10 +129,10 @@ export const useSessionStore = defineStore('session', () => {
       })
       if (!response.ok) {
         const errText = await response.text()
-        throw new Error(`Failed to save answer: ${response.status} ${errText}`)
+        throw new Error(`Gagal menyimpan jawaban: ${response.status} ${errText}`)
       }
     } catch (err) {
-      error.value = err.message || 'Failed to save answer'
+      error.value = err.message || 'Gagal menyimpan jawaban'
       console.error('Save answer error:', err)
     }
   }
@@ -149,7 +149,7 @@ export const useSessionStore = defineStore('session', () => {
 
       if (!response.ok) {
         const errText = await response.text()
-        throw new Error(`Failed to submit: ${response.status} ${errText}`)
+        throw new Error(`Gagal mengirim: ${response.status} ${errText}`)
       }
 
       const data = await response.json()

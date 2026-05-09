@@ -15,6 +15,26 @@ function inFilter(values) {
   return `in.(${values.map((v) => `"${String(v).replace(/"/g, '\\"')}"`).join(',')})`;
 }
 
+function mergeAnkiPreferences(target = {}, source = {}) {
+  const targetPlugins = Array.isArray(target.enabled_plugins) ? target.enabled_plugins : [];
+  const sourcePlugins = Array.isArray(source.enabled_plugins) ? source.enabled_plugins : [];
+  const enabledPlugins = [...new Set([...targetPlugins, ...sourcePlugins].filter(Boolean))];
+
+  return {
+    active_theme: target.active_theme || source.active_theme || 'kiku_like',
+    enabled_plugins: enabledPlugins.length ? enabledPlugins : ['kiku_like_cards', 'review_meta_footer'],
+    model_preferences: {
+      ...(source.model_preferences || {}),
+      ...(target.model_preferences || {}),
+    },
+  };
+}
+
+function isMissingPreferencesTableError(error) {
+  return error?.details?.code === 'PGRST205'
+    || error?.message?.includes('user_anki_preferences');
+}
+
 /**
  * POST /api/sessions
  * Create a new exam session
@@ -467,6 +487,45 @@ router.post('/claim', async (req, res, next) => {
         body: JSON.stringify({ user_id: targetUserId }),
       }
     );
+
+    try {
+      const [anonPrefs] = await supabaseRequest(
+        'user_anki_preferences',
+        `select=user_id,active_theme,enabled_plugins,model_preferences&user_id=eq.${enc(anonymousUserId)}&limit=1`
+      );
+      const [targetPrefs] = await supabaseRequest(
+        'user_anki_preferences',
+        `select=user_id,active_theme,enabled_plugins,model_preferences&user_id=eq.${enc(targetUserId)}&limit=1`
+      );
+
+      if (anonPrefs) {
+        const mergedPreferences = mergeAnkiPreferences(targetPrefs, anonPrefs);
+
+        await supabaseRequest(
+          'user_anki_preferences',
+          'on_conflict=user_id',
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            prefer: 'resolution=merge-duplicates,return=minimal',
+            body: JSON.stringify({
+              user_id: targetUserId,
+              ...mergedPreferences,
+            }),
+          }
+        );
+
+        await supabaseRequest(
+          'user_anki_preferences',
+          `user_id=eq.${enc(anonymousUserId)}`,
+          { method: 'DELETE' }
+        );
+      }
+    } catch (error) {
+      if (!isMissingPreferencesTableError(error)) {
+        throw error;
+      }
+    }
 
     // Delete anonymous user
     await supabaseRequest(
